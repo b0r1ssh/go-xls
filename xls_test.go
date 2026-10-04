@@ -1,0 +1,84 @@
+package xls_test
+
+import (
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/b0r1sh/go-xls"
+)
+
+func TestOpenFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("open valid file", func(t *testing.T) {
+		t.Parallel()
+
+		f, err := xls.OpenFile("testdata/empty.xls")
+		if err != nil {
+			t.Fatalf("failed to open file: %v", err)
+		}
+
+		t.Cleanup(func() {
+			if err := f.Close(); err != nil {
+				t.Fatalf("failed to close file")
+			}
+		})
+	})
+
+	t.Run("open non-existent file", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := xls.OpenFile("testdata/nonexistent.xls")
+		if err == nil {
+			t.Fatalf("expected error when opening non-existent file")
+		}
+	})
+
+	t.Run("open invalid file", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := xls.OpenFile("testdata/invalid.xls")
+		if err == nil {
+			t.Fatalf("expected error when opening invalid file")
+		}
+	})
+}
+
+func TestOpenReader(t *testing.T) {
+	t.Parallel()
+
+	t.Run("open valid reader", func(t *testing.T) {
+		t.Parallel()
+
+		o, err := os.Open("testdata/empty.xls")
+		if err != nil {
+			t.Fatalf("failed to open file: %v", err)
+		}
+		t.Cleanup(func() {
+			if err := o.Close(); err != nil {
+				t.Fatalf("failed to close reader")
+			}
+		})
+
+		f, err := xls.OpenReader(o)
+		if err != nil {
+			t.Fatalf("failed to open reader: %v", err)
+		}
+
+		t.Cleanup(func() {
+			if err := f.Close(); err != nil {
+				t.Fatalf("failed to close reader")
+			}
+		})
+	})
+
+	t.Run("open invalid reader", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := xls.OpenReader(strings.NewReader(""))
+		if err == nil {
+			t.Fatalf("expected error when opening invalid reader")
+		}
+	})
+}
