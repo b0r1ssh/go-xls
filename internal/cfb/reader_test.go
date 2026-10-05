@@ -512,4 +512,115 @@ func TestStream(t *testing.T) {
 			t.Fatalf("expected no error, got %v", err)
 		}
 	})
+
+	t.Run("mini stream with reserved start id", func(t *testing.T) {
+		t.Parallel()
+
+		header := baseHeader()
+		binary.LittleEndian.PutUint32(header[44:48], 1) // numFATSectors = 1
+		binary.LittleEndian.PutUint32(header[48:52], 1) // firstDirSector = 1
+		binary.LittleEndian.PutUint32(header[60:64], 2) // firstMiniFATSector = 2
+		binary.LittleEndian.PutUint32(header[64:68], 1) // numMiniFATSectors = 1
+
+		fatSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(fatSector[4:8], 0xFFFFFFFE)
+		binary.LittleEndian.PutUint32(fatSector[8:12], 0xFFFFFFFE)
+
+		dirSector := make([]byte, 512)
+		dirSector[66] = 5
+		binary.LittleEndian.PutUint32(dirSector[116:120], 0xFFFFFFFE)
+
+		binary.LittleEndian.PutUint16(dirSector[128:130], 0x0041)
+		binary.LittleEndian.PutUint16(dirSector[128+64:128+66], 4)
+		dirSector[128+66] = 2
+		binary.LittleEndian.PutUint32(dirSector[128+116:128+120], 0xFFFFFFFB) // reserved mini-sector id
+		binary.LittleEndian.PutUint64(dirSector[128+120:128+128], 10)
+
+		miniFATSector := make([]byte, 512)
+
+		data := append(append(append(append([]byte{}, header...), fatSector...), dirSector...), miniFATSector...)
+
+		r, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		_, err = r.Stream("A")
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
+
+	t.Run("mini stream start out of range", func(t *testing.T) {
+		t.Parallel()
+
+		header := baseHeader()
+		binary.LittleEndian.PutUint32(header[44:48], 1) // numFATSectors = 1
+		binary.LittleEndian.PutUint32(header[48:52], 1) // firstDirSector = 1
+		// no mini FAT sectors are configured, so r.miniFAT stays empty.
+
+		fatSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(fatSector[4:8], 0xFFFFFFFE)
+
+		dirSector := make([]byte, 512)
+		dirSector[66] = 5
+		binary.LittleEndian.PutUint32(dirSector[116:120], 0xFFFFFFFE)
+
+		binary.LittleEndian.PutUint16(dirSector[128:130], 0x0041)
+		binary.LittleEndian.PutUint16(dirSector[128+64:128+66], 4)
+		dirSector[128+66] = 2
+		binary.LittleEndian.PutUint32(dirSector[128+116:128+120], 0) // mini-sector 0, but miniFAT is empty
+		binary.LittleEndian.PutUint64(dirSector[128+120:128+128], 10)
+
+		data := append(append(append([]byte{}, header...), fatSector...), dirSector...)
+
+		r, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		_, err = r.Stream("A")
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
+
+	t.Run("mini stream circular chain", func(t *testing.T) {
+		t.Parallel()
+
+		header := baseHeader()
+		binary.LittleEndian.PutUint32(header[44:48], 1) // numFATSectors = 1
+		binary.LittleEndian.PutUint32(header[48:52], 1) // firstDirSector = 1
+		binary.LittleEndian.PutUint32(header[60:64], 2) // firstMiniFATSector = 2
+		binary.LittleEndian.PutUint32(header[64:68], 1) // numMiniFATSectors = 1
+
+		fatSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(fatSector[4:8], 0xFFFFFFFE)
+		binary.LittleEndian.PutUint32(fatSector[8:12], 0xFFFFFFFE)
+
+		dirSector := make([]byte, 512)
+		dirSector[66] = 5
+		binary.LittleEndian.PutUint32(dirSector[116:120], 0xFFFFFFFE)
+
+		binary.LittleEndian.PutUint16(dirSector[128:130], 0x0041)
+		binary.LittleEndian.PutUint16(dirSector[128+64:128+66], 4)
+		dirSector[128+66] = 2
+		binary.LittleEndian.PutUint32(dirSector[128+116:128+120], 0) // mini-sector 0 points back to itself
+		binary.LittleEndian.PutUint64(dirSector[128+120:128+128], 10)
+
+		// mini-sector 0's entry (left zero) points back to mini-sector 0.
+		miniFATSector := make([]byte, 512)
+
+		data := append(append(append(append([]byte{}, header...), fatSector...), dirSector...), miniFATSector...)
+
+		r, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		_, err = r.Stream("A")
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
 }
