@@ -8,7 +8,7 @@ import (
 	"github.com/b0r1sh/go-xls"
 )
 
-func TestOpenFile(t *testing.T) {
+func TestXLSOpenFile(t *testing.T) {
 	t.Parallel()
 
 	t.Run("open valid file", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestOpenFile(t *testing.T) {
 	})
 }
 
-func TestOpenReader(t *testing.T) {
+func TestXLSOpenReader(t *testing.T) {
 	t.Parallel()
 
 	t.Run("open valid reader", func(t *testing.T) {
@@ -79,6 +79,29 @@ func TestOpenReader(t *testing.T) {
 		_, err := xls.OpenReader(strings.NewReader(""))
 		if err == nil {
 			t.Fatalf("expected error when opening invalid reader")
+		}
+	})
+}
+
+func TestXLSSheetNames(t *testing.T) {
+	t.Parallel()
+
+	t.Run("sheet names of empty file", func(t *testing.T) {
+		t.Parallel()
+
+		f, err := xls.OpenFile("testdata/empty.xls")
+		if err != nil {
+			t.Fatalf("failed to open file: %v", err)
+		}
+		t.Cleanup(func() {
+			if err := f.Close(); err != nil {
+				t.Fatalf("failed to close file")
+			}
+		})
+
+		names := f.SheetNames()
+		if len(names) != 1 {
+			t.Fatalf("expected 1 sheet name, got %d", len(names))
 		}
 	})
 }

@@ -171,7 +171,7 @@ func Open(ra io.ReaderAt) (*Reader, error) {
 
 		for j := range entriesPerDirSector {
 			e := parseEntry(dbuf[j*128:j*128+128], majorVersion == 3)
-			if e.Type == 0 { // unallocated slot
+			if e.Type == 0x00 { // unallocated slot
 				continue
 			}
 
@@ -233,7 +233,8 @@ func (r *Reader) Stream(name string) (*Stream, error) {
 		size := min(int64(e.Size), int64(len(chain))*int64(secSize))
 		return &Stream{r: r, mini: mini, chain: chain, size: size}, nil
 	}
-	return nil, fmt.Errorf("cfb: stream %q not found", name)
+
+	return nil, fmt.Errorf("stream %s not found", name)
 }
 
 func (r *Reader) readSector(sector uint32, buf []byte) error {
