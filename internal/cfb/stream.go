@@ -54,7 +54,7 @@ func (s *Stream) ReadAt(p []byte, off int64) (int, error) {
 				return n, io.ErrUnexpectedEOF
 			}
 
-			sec, err := readSector(s.r.ra, s.r.rootChain[mainIdx], mainSecSize)
+			sec, err := readSectorAt(s.r.ra, s.r.rootChain[mainIdx], mainSecSize)
 			if err != nil {
 				return n, err
 			}
@@ -65,7 +65,7 @@ func (s *Stream) ReadAt(p []byte, off int64) (int, error) {
 
 			src = sec[within:]
 		} else {
-			sec, err := readSector(s.r.ra, secID, s.r.sectorSize)
+			sec, err := readSectorAt(s.r.ra, secID, s.r.sectorSize)
 			if err != nil {
 				return n, err
 			}
@@ -98,6 +98,11 @@ func (s *Stream) Read(p []byte) (int, error) {
 	return n, err
 }
 
+// Size returns the stream's declared length in bytes.
+func (s *Stream) Size() int64 {
+	return s.size
+}
+
 // Seek implements io.Seeker.
 func (s *Stream) Seek(offset int64, whence int) (int64, error) {
 	var pos int64
@@ -120,7 +125,7 @@ func (s *Stream) Seek(offset int64, whence int) (int64, error) {
 	return pos, nil
 }
 
-func readSector(ra io.ReaderAt, sector uint32, secSize int) ([]byte, error) {
+func readSectorAt(ra io.ReaderAt, sector uint32, secSize int) ([]byte, error) {
 	buf := make([]byte, secSize)
 	off := (int64(sector) + 1) * int64(secSize)
 	n, err := ra.ReadAt(buf, off)

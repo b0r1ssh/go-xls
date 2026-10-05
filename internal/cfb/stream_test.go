@@ -556,3 +556,56 @@ func TestStreamSeek(t *testing.T) {
 		}
 	})
 }
+
+func TestStreamSize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("regular stream", func(t *testing.T) {
+		t.Parallel()
+
+		s, want := newTestStream(t)
+
+		if got := s.Size(); got != int64(len(want)) {
+			t.Fatalf("expected size %d, got %d", len(want), got)
+		}
+	})
+
+	t.Run("mini stream", func(t *testing.T) {
+		t.Parallel()
+
+		const size = 10
+
+		rootData := make([]byte, 512)
+		data := newMiniStreamData(0, size, rootData)
+
+		r, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		s, err := r.Stream("M")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if got := s.Size(); got != size {
+			t.Fatalf("expected size %d, got %d", size, got)
+		}
+	})
+
+	t.Run("unaffected by reads and seeks", func(t *testing.T) {
+		t.Parallel()
+
+		s, want := newTestStream(t)
+
+		if _, err := s.Seek(100, io.SeekStart); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if _, err := s.Read(make([]byte, 10)); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if got := s.Size(); got != int64(len(want)) {
+			t.Fatalf("expected size %d, got %d", len(want), got)
+		}
+	})
+}
