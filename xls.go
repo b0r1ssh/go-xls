@@ -1,15 +1,21 @@
 package xls
 
 import (
-	"fmt"
 	"io"
 	"os"
 
 	"github.com/b0r1sh/go-xls/internal/cfb"
 )
 
+type streamReader interface {
+	io.Reader
+	io.Seeker
+}
+
 type File struct {
 	closer io.Closer
+
+	stream streamReader
 }
 
 func OpenFile(path string) (*File, error) {
@@ -29,12 +35,19 @@ func OpenFile(path string) (*File, error) {
 }
 
 func OpenReader(r io.ReaderAt) (*File, error) {
-	_, err := cfb.Open(r)
+	container, err := cfb.Open(r)
 	if err != nil {
-		return nil, fmt.Errorf("xls: %w", err)
+		return nil, err
 	}
 
-	return &File{}, nil
+	stream, err := container.Stream("Workbook")
+	if err != nil {
+		return nil, err
+	}
+
+	return &File{
+		stream: stream,
+	}, nil
 }
 
 func (f *File) Close() error {

@@ -386,6 +386,24 @@ func TestOpen(t *testing.T) {
 		}
 	})
 
+	t.Run("root entry not found", func(t *testing.T) {
+		t.Parallel()
+
+		header := baseHeader()
+		binary.LittleEndian.PutUint32(header[44:48], 1) // numFATSectors = 1
+
+		// sector 0 holds the FAT and ends the root directory chain at sector 0;
+		// its directory slots are left unallocated, so no root entry exists.
+		fatSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(fatSector[0:4], 0xFFFFFFFE)
+		data := append(append([]byte{}, header...), fatSector...)
+
+		_, err := cfb.Open(bytes.NewReader(data))
+		if err == nil {
+			t.Fatalf("expected error, got nil")
+		}
+	})
+
 	t.Run("directory entry with name", func(t *testing.T) {
 		t.Parallel()
 
@@ -407,6 +425,89 @@ func TestOpen(t *testing.T) {
 		data := append(append(append([]byte{}, header...), fatSector...), dirSector...)
 
 		_, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+}
+
+func TestStream(t *testing.T) {
+	t.Parallel()
+
+	t.Run("basic stream retrieval", func(t *testing.T) {
+		t.Parallel()
+
+		header := baseHeader()
+		binary.LittleEndian.PutUint32(header[44:48], 1) // numFATSectors = 1
+		binary.LittleEndian.PutUint32(header[48:52], 1) // firstDirSector = 1
+
+		// sector 0 holds the FAT and ends the root directory chain at sector 1.
+		fatSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(fatSector[4:8], 0xFFFFFFFE)
+
+		// sector 1 holds the directory: slot 0 is the root entry, slot 1 is a
+		// stream named "A".
+		dirSector := make([]byte, 512)
+		dirSector[66] = 5                                             // object type = root storage
+		binary.LittleEndian.PutUint32(dirSector[116:120], 0xFFFFFFFE) // root stream is empty
+
+		binary.LittleEndian.PutUint16(dirSector[128:130], 0x0041)             // name = "A"
+		binary.LittleEndian.PutUint16(dirSector[128+64:128+66], 4)            // nameLen, including the null terminator
+		dirSector[128+66] = 2                                                 // object type = stream
+		binary.LittleEndian.PutUint32(dirSector[128+116:128+120], 0xFFFFFFFE) // stream is empty
+
+		data := append(append(append([]byte{}, header...), fatSector...), dirSector...)
+
+		r, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		_, err = r.Stream("A")
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	t.Run("mini stream retrieval", func(t *testing.T) {
+		t.Parallel()
+
+		header := baseHeader()
+		binary.LittleEndian.PutUint32(header[44:48], 1) // numFATSectors = 1
+		binary.LittleEndian.PutUint32(header[48:52], 1) // firstDirSector = 1
+		binary.LittleEndian.PutUint32(header[60:64], 2) // firstMiniFATSector = 2
+		binary.LittleEndian.PutUint32(header[64:68], 1) // numMiniFATSectors = 1
+
+		// sector 0 holds the FAT: it ends the root directory chain at sector 1
+		// and the mini FAT chain at sector 2.
+		fatSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(fatSector[4:8], 0xFFFFFFFE)
+		binary.LittleEndian.PutUint32(fatSector[8:12], 0xFFFFFFFE)
+
+		// sector 1 holds the directory: slot 0 is the root entry, slot 1 is a
+		// stream named "A" small enough to live in the mini stream.
+		dirSector := make([]byte, 512)
+		dirSector[66] = 5                                             // object type = root storage
+		binary.LittleEndian.PutUint32(dirSector[116:120], 0xFFFFFFFE) // root stream is empty
+
+		binary.LittleEndian.PutUint16(dirSector[128:130], 0x0041)     // name = "A"
+		binary.LittleEndian.PutUint16(dirSector[128+64:128+66], 4)    // nameLen, including the null terminator
+		dirSector[128+66] = 2                                         // object type = stream
+		binary.LittleEndian.PutUint32(dirSector[128+116:128+120], 0)  // start mini-sector = 0
+		binary.LittleEndian.PutUint64(dirSector[128+120:128+128], 10) // stream size = 10 bytes
+
+		// sector 2 holds the mini FAT: mini-sector 0 ends the stream's chain.
+		miniFATSector := make([]byte, 512)
+		binary.LittleEndian.PutUint32(miniFATSector[0:4], 0xFFFFFFFE)
+
+		data := append(append(append(append([]byte{}, header...), fatSector...), dirSector...), miniFATSector...)
+
+		r, err := cfb.Open(bytes.NewReader(data))
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		_, err = r.Stream("A")
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
 		}
