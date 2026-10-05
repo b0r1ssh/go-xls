@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"unicode/utf16"
 )
 
@@ -25,9 +26,10 @@ const (
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/0afa4e43-b18f-432a-9917-4f276eca7a73
 	maxDIFATEntries = 109
 
-	// objectTypeRoot represents the root storage object type.
+	// objectTypeRoot and objectTypeStream represent the root storage and stream object types.
 	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-cfb/60fe8611-66c3-496b-b70d-a504c94c9ace
-	objectTypeRoot = 0x05
+	objectTypeRoot   = 0x05
+	objectTypeStream = 0x02
 )
 
 // signature is the expected 8-byte signature at the beginning of a CFB file.
@@ -54,6 +56,8 @@ type Reader struct {
 
 	rootChain []uint32
 	dir       []entry
+
+	chains map[int][]uint32
 }
 
 func Open(ra io.ReaderAt) (*Reader, error) {
@@ -209,6 +213,29 @@ func Open(ra io.ReaderAt) (*Reader, error) {
 	return r, nil
 }
 
+func (r *Reader) Stream(name string) (*Stream, error) {
+	for i := range r.dir {
+		e := r.dir[i]
+		if e.Type != objectTypeStream || !strings.EqualFold(e.Name, name) {
+			continue
+		}
+
+		mini := int64(e.Size) < r.miniCutoff
+		chain, err := r.entryChain(i, e, mini)
+		if err != nil {
+			return nil, err
+		}
+
+		secSize := r.sectorSize
+		if mini {
+			secSize = r.miniSectorSize
+		}
+		size := min(int64(e.Size), int64(len(chain))*int64(secSize))
+		return &Stream{r: r, mini: mini, chain: chain, size: size}, nil
+	}
+	return nil, fmt.Errorf("cfb: stream %q not found", name)
+}
+
 func (r *Reader) readSector(sector uint32, buf []byte) error {
 	if isSpecial(sector) {
 		return fmt.Errorf("cannot read reserved sector id: %#08x", sector)
@@ -246,6 +273,57 @@ func (r *Reader) chain(start uint32, hint int) ([]uint32, error) {
 		chain = append(chain, id)
 		id = r.fat[id]
 	}
+	return chain, nil
+}
+
+func (r *Reader) miniChain(start uint32, hint int) ([]uint32, error) {
+	var chain []uint32
+	if hint > 0 && hint <= len(r.miniFAT) {
+		chain = make([]uint32, 0, hint)
+	}
+
+	id := start
+	for !isChainEnd(id) {
+		if isSpecial(id) {
+			return nil, fmt.Errorf("cannot read reserved sector id: %#08x", id)
+		}
+
+		if int(id) >= len(r.miniFAT) {
+			return nil, errors.New("mini-sector id out of range")
+		}
+
+		// every id indexes the miniFAT, so a chain longer than the miniFAT repeats one.
+		if len(chain) >= len(r.miniFAT) {
+			return nil, errors.New("circular mini-sector chain")
+		}
+
+		chain = append(chain, id)
+		id = r.miniFAT[id]
+	}
+	return chain, nil
+}
+
+func (r *Reader) entryChain(i int, e entry, mini bool) ([]uint32, error) {
+	if chain, ok := r.chains[i]; ok {
+		return chain, nil
+	}
+
+	var chain []uint32
+	var err error
+	if mini {
+		chain, err = r.miniChain(e.Start, sectorsFor(int64(e.Size), r.miniSectorSize))
+	} else {
+		chain, err = r.chain(e.Start, sectorsFor(int64(e.Size), r.sectorSize))
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if r.chains == nil {
+		r.chains = make(map[int][]uint32)
+	}
+
+	r.chains[i] = chain
 	return chain, nil
 }
 
