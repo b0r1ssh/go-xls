@@ -34,12 +34,27 @@ type Cell struct {
 	Value any
 }
 
+var columnNames = func() [256]string {
+	var names [256]string
+	for i := range names {
+		names[i] = makeColumnName(i)
+	}
+	return names
+}()
+
 // columnLabel converts a 0-based column index into its spreadsheet-style
 // label (0 -> "A", 25 -> "Z", 26 -> "AA", ...).
 func columnLabel(col int) string {
-	col++
+	if col >= 0 && col < len(columnNames) {
+		return columnNames[col]
+	}
+	return makeColumnName(col)
+}
+
+func makeColumnName(col int) string {
 	var buf [8]byte
 	i := len(buf)
+	col++
 	for col > 0 {
 		col--
 		i--

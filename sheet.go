@@ -3,20 +3,19 @@ package xls
 import (
 	"errors"
 	"io"
+	"iter"
 )
 
-// ReadRows streams the rows of the sheet named sheetName in order. The
-// returned channel is closed once all rows have been sent, after an
-// error, or immediately if no sheet with that name exists.
-func (f *File) ReadRows(sheetName string) chan Row {
-	ch := make(chan Row, 32)
-	sheet, ok := f.sheetByName(sheetName)
-	if !ok {
-		close(ch)
-		return ch
+// ReadRows streams the rows of the sheet named sheetName in order. Rows
+// are produced synchronously as the returned sequence is iterated.
+func (f *File) ReadRows(sheetName string) iter.Seq[Row] {
+	return func(yield func(Row) bool) {
+		sheet, ok := f.sheetByName(sheetName)
+		if !ok {
+			return
+		}
+		f.readSheetRows(sheet, yield)
 	}
-	go f.readSheetRows(sheet, ch)
-	return ch
 }
 
 func (f *File) sheetByName(name string) (Sheet, bool) {
@@ -28,12 +27,10 @@ func (f *File) sheetByName(name string) (Sheet, bool) {
 	return Sheet{}, false
 }
 
-func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
-	defer close(ch)
-
+func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 	stream := f.stream
 	if _, err := stream.Seek(int64(sheet.offset), io.SeekStart); err != nil {
-		ch <- Row{Error: err}
+		yield(Row{Error: err})
 		return
 	}
 
@@ -42,19 +39,24 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 	cur := Row{Index: -1}
 
 	rowWidth := 0
+	stopped := false
 	flush := func() {
 		if cur.Index >= 0 {
 			if len(cur.Cells) > rowWidth {
 				rowWidth = len(cur.Cells)
 			}
-			ch <- cur
+			if !stopped && !yield(cur) {
+				stopped = true
+			}
 		}
 		cur = Row{Index: -1}
 	}
 
 	fail := func(err error) {
 		flush()
-		ch <- Row{Error: err}
+		if !stopped {
+			yield(Row{Error: err})
+		}
 	}
 
 	add := func(rw int, c Cell) {
@@ -69,6 +71,10 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 	}
 
 	for {
+		if stopped {
+			return
+		}
+
 		rec, err := rr.next()
 		if err != nil {
 			if !errors.Is(err, io.EOF) {

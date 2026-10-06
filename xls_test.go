@@ -14,16 +14,10 @@ func TestXLSOpenFile(t *testing.T) {
 	t.Run("open valid file", func(t *testing.T) {
 		t.Parallel()
 
-		f, err := xls.OpenFile("testdata/empty.xls")
+		_, err := xls.OpenFile("testdata/empty.xls")
 		if err != nil {
 			t.Fatalf("failed to open file: %v", err)
 		}
-
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Fatalf("failed to close file")
-			}
-		})
 	})
 
 	t.Run("open non-existent file", func(t *testing.T) {
@@ -61,16 +55,10 @@ func TestXLSOpenReader(t *testing.T) {
 			}
 		})
 
-		f, err := xls.OpenReader(o)
+		_, err = xls.OpenReader(o)
 		if err != nil {
 			t.Fatalf("failed to open reader: %v", err)
 		}
-
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Fatalf("failed to close reader")
-			}
-		})
 	})
 
 	t.Run("open invalid reader", func(t *testing.T) {
@@ -93,11 +81,6 @@ func TestXLSSheetNames(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open file: %v", err)
 		}
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Fatalf("failed to close file")
-			}
-		})
 
 		names := f.SheetNames()
 		if len(names) != 1 {

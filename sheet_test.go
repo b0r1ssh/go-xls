@@ -17,11 +17,6 @@ func TestXLSReadRows(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open file: %v", err)
 		}
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Fatalf("failed to close file")
-			}
-		})
 
 		i := 0
 		for range f.ReadRows("Sheet 1") {
@@ -40,11 +35,6 @@ func TestXLSReadRows(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open file: %v", err)
 		}
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Fatalf("failed to close file")
-			}
-		})
 
 		i := 0
 		for range f.ReadRows("Sheet 2") {
@@ -87,11 +77,6 @@ func TestXLSReadRows(t *testing.T) {
 				if err != nil {
 					t.Fatalf("failed to open file: %v", err)
 				}
-				t.Cleanup(func() {
-					if err := f.Close(); err != nil {
-						t.Fatalf("failed to close file")
-					}
-				})
 
 				rows := make([]xls.Row, 0, tt.expectedRows)
 				cells := make([]xls.Cell, 0, len(tt.expectedCells))
@@ -133,11 +118,6 @@ func TestXLSReadRows(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to open file: %v", err)
 		}
-		t.Cleanup(func() {
-			if err := f.Close(); err != nil {
-				t.Fatalf("failed to close file")
-			}
-		})
 
 		rowCount := 0
 		for range f.ReadRows("Sheet 1") {

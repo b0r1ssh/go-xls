@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+var (
+	epoch1899 = time.Date(1899, time.December, 30, 0, 0, 0, 0, time.UTC)
+	epoch1904 = time.Date(1904, time.January, 1, 0, 0, 0, 0, time.UTC)
+)
+
 func isBuiltinDateFormat(ifmt uint16) bool {
 	switch {
 	case ifmt >= 14 && ifmt <= 22:
@@ -51,12 +56,15 @@ func isDateFormatCode(code string) bool {
 }
 
 func (f *File) isDateXFE(ixfe uint16) bool {
-	if int(ixfe) >= len(f.xfFormats) {
+	if int(ixfe) >= len(f.dateXFECache) {
 		return false
 	}
 
-	ifmt := f.xfFormats[ixfe]
-	if code, ok := f.formats[ifmt]; ok {
+	return f.dateXFECache[ixfe]
+}
+
+func isDateXFECode(formats map[uint16]string, ifmt uint16) bool {
+	if code, ok := formats[ifmt]; ok {
 		return isDateFormatCode(code)
 	}
 
@@ -64,9 +72,9 @@ func (f *File) isDateXFE(ixfe uint16) bool {
 }
 
 func (f *File) excelDateTime(serial float64) time.Time {
-	epoch := time.Date(1899, time.December, 30, 0, 0, 0, 0, time.UTC)
+	epoch := epoch1899
 	if f.dateSystem1904 {
-		epoch = time.Date(1904, time.January, 1, 0, 0, 0, 0, time.UTC)
+		epoch = epoch1904
 	}
 
 	days := math.Floor(serial)
