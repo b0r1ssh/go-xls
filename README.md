@@ -40,7 +40,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer f.Close()
 
 	for _, name := range f.SheetNames() {
 		fmt.Println("sheet:", name)

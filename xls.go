@@ -4,6 +4,7 @@
 package xls
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -26,8 +27,6 @@ type Sheet struct {
 
 // File is an opened .xls workbook. Call Close when done with it.
 type File struct {
-	closer io.Closer
-
 	stream streamReader
 
 	sheets []Sheet
@@ -35,38 +34,27 @@ type File struct {
 	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
 	sst []string
 
-	// formats maps a custom number format index (ifmt) to its
-	// format code, as defined by FORMAT records.
-	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/300280fd-e4fe-4675-a924-4d383af48d3b
-	formats map[uint16]string
-
-	// xfFormats holds the number format index (ifmt) of each XF record,
-	// in the order the XF records appear in the stream.
-	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/993d15c4-ec04-43e9-ba36-594dfb336c6d
-	xfFormats []uint16
-
 	// dateSystem1904 indicates whether the workbook uses the 1904 date system
 	// (epoch 1904-01-01) instead of the default 1900 system.
 	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/4a5e900a-0eb0-4355-8fc1-81aab8f46e8b
 	dateSystem1904 bool
+
+	// dateXFECache caches isDateXFE's result per XF record index; computed
+	// once after parsing since formats/xfFormats don't change afterward.
+	dateXFECache []bool
 }
 
 // OpenFile opens the .xls workbook at path. The returned File must be
 // closed with Close.
 func OpenFile(path string) (*File, error) {
-	o, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := OpenReader(o)
-	if err != nil {
-		o.Close()
-		return nil, err
-	}
-
-	f.closer = o
-	return f, nil
+	// read the whole file up front so the CFB reader serves sectors from
+	// memory instead of issuing a syscall per sector.
+	return OpenReader(bytes.NewReader(data))
 }
 
 // OpenReader opens a .xls workbook from r. Unlike OpenFile, the caller
@@ -93,12 +81,9 @@ func OpenReader(r io.ReaderAt) (*File, error) {
 	return f, nil
 }
 
-// Close releases resources associated with the File. If the File was
-// obtained with OpenReader, Close is a no-op.
+// Close is a no-op; File holds no open resources after OpenFile or
+// OpenReader returns. It exists so callers can always defer f.Close().
 func (f *File) Close() error {
-	if f.closer != nil {
-		return f.closer.Close()
-	}
 	return nil
 }
 
@@ -115,7 +100,19 @@ func (f *File) SheetNames() []string {
 func (f *File) compute() error {
 	rr := &recordReader{r: f.stream}
 
-	var sheets []Sheet
+	var (
+		sheets []Sheet
+
+		// formats maps a custom number format index (ifmt) to its
+		// format code, as defined by FORMAT records.
+		// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/300280fd-e4fe-4675-a924-4d383af48d3b
+		formats map[uint16]string
+
+		// xfFormats holds the number format index (ifmt) of each XF record,
+		// in the order the XF records appear in the stream.
+		// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/993d15c4-ec04-43e9-ba36-594dfb336c6d
+		xfFormats []uint16
+	)
 
 loop:
 	for {
@@ -158,18 +155,18 @@ loop:
 				return err
 			}
 
-			if f.formats == nil {
-				f.formats = make(map[uint16]string)
+			if formats == nil {
+				formats = make(map[uint16]string)
 			}
 
-			f.formats[ifmt] = code
+			formats[ifmt] = code
 		case recXF:
 			ifmt, err := rec.parseXF()
 			if err != nil {
 				return err
 			}
 
-			f.xfFormats = append(f.xfFormats, ifmt)
+			xfFormats = append(xfFormats, ifmt)
 		case recDATEMODE:
 			is1904, err := rec.parseDATEMODE()
 			if err != nil {
@@ -181,6 +178,12 @@ loop:
 	}
 
 	f.sheets = sheets
+
+	dateXFECache := make([]bool, len(xfFormats))
+	for i, ifmt := range xfFormats {
+		dateXFECache[i] = isDateXFECode(formats, ifmt)
+	}
+	f.dateXFECache = dateXFECache
 
 	return nil
 }
