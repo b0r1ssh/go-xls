@@ -14,6 +14,12 @@ type Stream struct {
 
 	size int64
 	pos  int64
+
+	// secBuf caches the most recently read sector so sequential reads
+	// within the same sector don't re-allocate or re-read from disk.
+	secBuf   []byte
+	secID    uint32
+	secValid bool
 }
 
 // ReadAt implements io.ReaderAt.
@@ -54,7 +60,7 @@ func (s *Stream) ReadAt(p []byte, off int64) (int, error) {
 				return n, io.ErrUnexpectedEOF
 			}
 
-			sec, err := readSectorAt(s.r.ra, s.r.rootChain[mainIdx], mainSecSize)
+			sec, err := s.readSector(s.r.rootChain[mainIdx])
 			if err != nil {
 				return n, err
 			}
@@ -65,7 +71,7 @@ func (s *Stream) ReadAt(p []byte, off int64) (int, error) {
 
 			src = sec[within:]
 		} else {
-			sec, err := readSectorAt(s.r.ra, secID, s.r.sectorSize)
+			sec, err := s.readSector(secID)
 			if err != nil {
 				return n, err
 			}
@@ -125,12 +131,29 @@ func (s *Stream) Seek(offset int64, whence int) (int64, error) {
 	return pos, nil
 }
 
-func readSectorAt(ra io.ReaderAt, sector uint32, secSize int) ([]byte, error) {
-	buf := make([]byte, secSize)
+// readSector returns the bytes of the given sector, reusing the
+// previous read's buffer when the requested sector is already cached.
+func (s *Stream) readSector(sector uint32) ([]byte, error) {
+	if s.secValid && s.secID == sector {
+		return s.secBuf, nil
+	}
+
+	secSize := s.r.sectorSize
+	if cap(s.secBuf) < secSize {
+		s.secBuf = make([]byte, secSize)
+	}
+	buf := s.secBuf[:secSize]
+
 	off := (int64(sector) + 1) * int64(secSize)
-	n, err := ra.ReadAt(buf, off)
+	n, err := s.r.ra.ReadAt(buf, off)
 	if err != nil && !(n > 0 && (errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF))) {
+		s.secValid = false
 		return nil, err
 	}
-	return buf[:n], nil
+
+	s.secBuf = buf[:n]
+	s.secID = sector
+	s.secValid = true
+
+	return s.secBuf, nil
 }

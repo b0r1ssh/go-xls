@@ -1,7 +1,6 @@
 package xls
 
 import (
-	"encoding/binary"
 	"errors"
 	"io"
 )
@@ -85,16 +84,6 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 			flush()
 			return
 
-		case recROW:
-			if len(rec.data) < 2 {
-				continue
-			}
-
-			rw := binary.LittleEndian.Uint16(rec.data[0:2])
-			if cur.Index != int(rw) {
-				flush()
-				cur.Index = int(rw)
-			}
 		case recRK:
 			rw, col, ixfe, value, err := rec.parseRK()
 			if err != nil {

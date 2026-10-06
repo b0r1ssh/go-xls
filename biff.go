@@ -13,7 +13,6 @@ import (
 // https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/6fba0383-0d7a-4c7a-afe9-642ff70cbd36
 const (
 	recEOF        = 0x000A
-	recROW        = 0x0208
 	recBOUNDSHEET = 0x0085
 	recSST        = 0x00FC
 	recRK         = 0x027E
