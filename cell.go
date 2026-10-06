@@ -1,19 +1,26 @@
 package xls
 
+// Row is one row of cells read from a sheet. If Error is non-nil, the
+// other fields are not meaningful.
 type Row struct {
 	Index int
 	Cells []Cell
 	Error error
 }
 
+// CellType identifies the Go type stored in a Cell's Value.
 type CellType int
 
 const (
+	// TypeString means Value is a string.
 	TypeString CellType = iota
+	// TypeNumeric means Value is a float64.
 	TypeNumeric
+	// TypeBoolean means Value is a bool.
 	TypeBoolean
 )
 
+// Cell is a single spreadsheet cell.
 type Cell struct {
 	// Column is the spreadsheet-style column label, e.g. "A", "B", "AA".
 	Column string

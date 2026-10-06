@@ -3,10 +3,12 @@ package xls
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 )
 
+// ReadRows streams the rows of the sheet named sheetName in order. The
+// returned channel is closed once all rows have been sent, after an
+// error, or immediately if no sheet with that name exists.
 func (f *File) ReadRows(sheetName string) chan Row {
 	ch := make(chan Row, 32)
 	sheet, ok := f.sheetByName(sheetName)
@@ -128,8 +130,6 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 
 			add(rw, addCellBoolean(col, value))
 		default:
-			fmt.Printf("unknown record type: %#04x\n", rec.recType)
-
 			continue
 		}
 
