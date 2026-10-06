@@ -14,7 +14,7 @@ channel without loading the whole sheet into memory.
 - List the names of a workbook's visible worksheets
 - Stream rows of a sheet as they are parsed, instead of buffering the
   whole sheet
-- String, numeric, and boolean cell values, with spreadsheet-style
+- String, numeric, date, and boolean cell values, with spreadsheet-style
   column labels (`A`, `B`, ..., `AA`, ...)
 
 ## Installation
