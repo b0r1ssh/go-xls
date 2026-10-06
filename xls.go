@@ -15,7 +15,7 @@ type streamReader interface {
 
 type Sheet struct {
 	// Name is the worksheet's name as shown in Excel.
-	Name string
+	name string
 
 	offset uint32
 }
@@ -76,7 +76,7 @@ func (f *File) Close() error {
 func (f *File) SheetNames() []string {
 	names := make([]string, len(f.sheets))
 	for i, sheet := range f.sheets {
-		names[i] = sheet.Name
+		names[i] = sheet.name
 	}
 	return names
 }
@@ -110,7 +110,7 @@ loop:
 			// Only include visible worksheets (sheetType == 0x00)
 			if sheetType == 0x00 {
 				sheets = append(sheets, Sheet{
-					Name:   name,
+					name:   name,
 					offset: offset,
 				})
 			}
