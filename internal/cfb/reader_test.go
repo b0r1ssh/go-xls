@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/b0r1sh/go-xls/internal/cfb"
+	"github.com/b0r1ssh/go-xls/internal/cfb"
 )
 
 // baseHeader returns a minimal, well-formed 512-byte CFB header (version 3,

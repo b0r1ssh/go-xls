@@ -3,7 +3,7 @@ package xls_test
 import (
 	"testing"
 
-	"github.com/b0r1sh/go-xls"
+	"github.com/b0r1ssh/go-xls"
 )
 
 func TestXLSReadRows(t *testing.T) {

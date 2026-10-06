@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/b0r1sh/go-xls/internal/cfb"
+	"github.com/b0r1ssh/go-xls/internal/cfb"
 )
 
 type streamReader interface {
