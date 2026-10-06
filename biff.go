@@ -20,6 +20,9 @@ const (
 	recMULRK      = 0x00BD
 	recLABELSST   = 0x00FD
 	recBOOLERR    = 0x0205
+	recFORMAT     = 0x041E
+	recXF         = 0x00E0
+	recDATEMODE   = 0x0022
 )
 
 type biffRecord struct {
@@ -147,16 +150,17 @@ func (rec biffRecord) parseSST() (sst []string, err error) {
 	return sst, nil
 }
 
-func (rec biffRecord) parseRK() (row, col int, value float64, err error) {
+func (rec biffRecord) parseRK() (row, col int, ixfe uint16, value float64, err error) {
 	if len(rec.data) < 10 {
-		return 0, 0, 0, errors.New("malformed RK record")
+		return 0, 0, 0, 0, errors.New("malformed RK record")
 	}
 
 	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
 	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+	ixfe = binary.LittleEndian.Uint16(rec.data[4:6])
 	rk := binary.LittleEndian.Uint32(rec.data[6:10])
 
-	return row, col, decodeRK(rk), nil
+	return row, col, ixfe, decodeRK(rk), nil
 }
 
 func (rec biffRecord) parseBOOLERR() (row, col int, value bool, err error) {
@@ -174,25 +178,27 @@ func (rec biffRecord) parseBOOLERR() (row, col int, value bool, err error) {
 	return row, col, value, nil
 }
 
-func (rec biffRecord) parseMULRK() (row int, cols []int, values []float64, err error) {
+func (rec biffRecord) parseMULRK() (row int, cols []int, ixfes []uint16, values []float64, err error) {
 	if len(rec.data) < 6 {
-		return 0, nil, nil, errors.New("malformed MULRK record")
+		return 0, nil, nil, nil, errors.New("malformed MULRK record")
 	}
 
 	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
 	colFirst := int(binary.LittleEndian.Uint16(rec.data[2:4]))
 	n := (len(rec.data) - 6) / 6
 	cols = make([]int, n)
+	ixfes = make([]uint16, n)
 	values = make([]float64, n)
 	for i := range n {
-		// Each entry is {ixfe(2), rk(4)}; the ixfe field is skipped.
+		// Each entry is {ixfe(2), rk(4)}.
 		base := 4 + i*6
 
 		cols[i] = colFirst + i
+		ixfes[i] = binary.LittleEndian.Uint16(rec.data[base : base+2])
 		rk := binary.LittleEndian.Uint32(rec.data[base+2 : base+6])
 		values[i] = decodeRK(rk)
 	}
-	return row, cols, values, nil
+	return row, cols, ixfes, values, nil
 }
 
 func (rec biffRecord) parseLABELSST(sst []string) (row, col int, value string, err error) {
@@ -210,6 +216,57 @@ func (rec biffRecord) parseLABELSST(sst []string) (row, col int, value string, e
 	}
 
 	return row, col, s, nil
+}
+
+func (rec biffRecord) parseFORMAT() (ifmt uint16, code string, err error) {
+	if len(rec.data) < 5 {
+		return 0, "", errors.New("malformed FORMAT record")
+	}
+
+	ifmt = binary.LittleEndian.Uint16(rec.data[0:2])
+	cch := int(binary.LittleEndian.Uint16(rec.data[2:4]))
+	fHighByte := rec.data[4]&0x1 != 0
+	data := rec.data[5:]
+
+	charBytes := cch
+	if fHighByte {
+		charBytes = cch * 2
+	}
+	if len(data) < charBytes {
+		return 0, "", errors.New("malformed FORMAT record: truncated string data")
+	}
+
+	if fHighByte {
+		u16 := make([]uint16, cch)
+		for i := range u16 {
+			u16[i] = binary.LittleEndian.Uint16(data[i*2 : i*2+2])
+		}
+		code = string(utf16.Decode(u16))
+	} else {
+		code = string(data[:cch])
+	}
+
+	return ifmt, code, nil
+}
+
+func (rec biffRecord) parseXF() (ifmt uint16, err error) {
+	if len(rec.data) < 4 {
+		return 0, errors.New("malformed XF record")
+	}
+
+	ifmt = binary.LittleEndian.Uint16(rec.data[2:4])
+
+	return ifmt, nil
+}
+
+func (rec biffRecord) parseDATEMODE() (is1904 bool, err error) {
+	if len(rec.data) < 2 {
+		return false, errors.New("malformed 1904 record")
+	}
+
+	is1904 = binary.LittleEndian.Uint16(rec.data[0:2]) != 0
+
+	return is1904, nil
 }
 
 // decodeRK decodes an RK-encoded number from a BIFF record into a float64 value.
