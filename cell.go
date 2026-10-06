@@ -11,6 +11,7 @@ type CellType int
 const (
 	TypeString CellType = iota
 	TypeNumeric
+	TypeBoolean
 )
 
 type Cell struct {
@@ -18,6 +19,8 @@ type Cell struct {
 	Column string
 
 	Type CellType
+
+	Value any
 }
 
 // columnLabel converts a 0-based column index into its spreadsheet-style
@@ -35,16 +38,26 @@ func columnLabel(col int) string {
 	return string(buf[i:])
 }
 
-func addCellString(col int) Cell {
+func addCellString(col int, value string) Cell {
 	return Cell{
 		Column: columnLabel(col),
 		Type:   TypeString,
+		Value:  value,
 	}
 }
 
-func addCellNumeric(col int) Cell {
+func addCellNumeric(col int, value float64) Cell {
 	return Cell{
 		Column: columnLabel(col),
 		Type:   TypeNumeric,
+		Value:  value,
+	}
+}
+
+func addCellBoolean(col int, value bool) Cell {
+	return Cell{
+		Column: columnLabel(col),
+		Type:   TypeBoolean,
+		Value:  value,
 	}
 }

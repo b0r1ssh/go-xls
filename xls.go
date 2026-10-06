@@ -101,7 +101,7 @@ loop:
 		case recEOF:
 			break loop
 		case recBOUNDSHEET:
-			offset, sheetType, name, err := parseBOUNDSHEET(rec)
+			offset, sheetType, name, err := rec.parseBOUNDSHEET()
 			if err != nil {
 				return err
 			}
