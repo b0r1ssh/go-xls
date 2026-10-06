@@ -59,15 +59,18 @@ func TestXLSReadRows(t *testing.T) {
 		t.Parallel()
 
 		tests := []struct {
-			name               string
-			expectedRows       int
-			expectedCells      int
-			expectedCellValues []any
+			name          string
+			expectedRows  int
+			expectedCells []xls.Cell
 		}{
-			{"number.xls", 1, 1, []any{float64(1)}},
-			{"string.xls", 1, 1, []any{""}},
-			{"multi_number.xls", 1, 3, []any{float64(1), float64(2), float64(3)}},
-			{"bool.xls", 1, 1, []any{true}},
+			{"number.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(1)}}},
+			{"string.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeString, Value: "hello"}}},
+			{"multi_number.xls", 1, []xls.Cell{
+				{Column: "A", Type: xls.TypeNumeric, Value: float64(1)},
+				{Column: "B", Type: xls.TypeNumeric, Value: float64(2)},
+				{Column: "C", Type: xls.TypeNumeric, Value: float64(3)},
+			}},
+			{"bool.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeBoolean, Value: true}}},
 		}
 
 		for _, tt := range tests {
@@ -84,30 +87,33 @@ func TestXLSReadRows(t *testing.T) {
 					}
 				})
 
-				i := 0
-				j := 0
-				v := make([]any, tt.expectedCells)
+				rows := make([]xls.Row, 0, tt.expectedRows)
+				cells := make([]xls.Cell, 0, len(tt.expectedCells))
 				for row := range f.ReadRows("Sheet 1") {
-					i++
+					rows = append(rows, row)
 
-					j = len(row.Cells)
-
-					for i, cell := range row.Cells {
-						v[i] = cell.Value
+					for _, cell := range row.Cells {
+						cells = append(cells, cell)
 					}
 				}
 
-				if i != tt.expectedRows {
-					t.Fatalf("expected %d rows for %s, got %d", tt.expectedRows, tt.name, i)
+				if len(rows) != tt.expectedRows {
+					t.Fatalf("expected %d rows for %s, got %d", tt.expectedRows, tt.name, len(rows))
 				}
 
-				if j != tt.expectedCells {
-					t.Fatalf("expected %d cols for %s, got %d", tt.expectedCells, tt.name, j)
+				for i := range tt.expectedRows {
+					if rows[i].Index != i {
+						t.Fatalf("expected row index %d for %s, got %d", i, tt.name, rows[i].Index)
+					}
 				}
 
-				for k, expected := range tt.expectedCellValues {
-					if v[k] != expected {
-						t.Fatalf("expected cell value %v at index %d for %s, got %v on file %s", expected, k, tt.name, v[k], tt.name)
+				if len(cells) != len(tt.expectedCells) {
+					t.Fatalf("expected %d cols for %s, got %d", len(tt.expectedCells), tt.name, len(cells))
+				}
+
+				for i := range tt.expectedCells {
+					if cells[i] != tt.expectedCells[i] {
+						t.Fatalf("expected cell %v for %s, got %v", tt.expectedCells[i], tt.name, cells[i])
 					}
 				}
 			})

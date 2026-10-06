@@ -2,6 +2,7 @@ package xls
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -69,7 +70,7 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 	for {
 		rec, err := rr.next()
 		if err != nil {
-			if err != io.EOF {
+			if !errors.Is(err, io.EOF) {
 				fail(err)
 			} else {
 				flush()
@@ -111,16 +112,13 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 				add(rw, addCellNumeric(cols[i], values[i]))
 			}
 		case recLABELSST:
-			if len(rec.data) < 10 {
+			rw, col, value, err := rec.parseLABELSST(f.sst)
+			if err != nil {
+				fail(err)
 				continue
 			}
 
-			rw := int(binary.LittleEndian.Uint16(rec.data[0:2]))
-			col := int(binary.LittleEndian.Uint16(rec.data[2:4]))
-
-			// TODO: Use SST
-			// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
-			add(rw, addCellString(col, ""))
+			add(rw, addCellString(col, value))
 		case recBOOLERR:
 			rw, col, value, err := rec.parseBOOLERR()
 			if err != nil {

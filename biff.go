@@ -15,6 +15,7 @@ const (
 	recEOF        = 0x000A
 	recROW        = 0x0208
 	recBOUNDSHEET = 0x0085
+	recSST        = 0x00FC
 	recRK         = 0x027E
 	recMULRK      = 0x00BD
 	recLABELSST   = 0x00FD
@@ -71,24 +72,79 @@ func (rec biffRecord) parseBOUNDSHEET() (offset uint32, sheetType byte, name str
 	return offset, sheetType, name, nil
 }
 
-// decodeRK decodes an RK-encoded number from a BIFF record into a float64 value.
-// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/04fa5340-122f-49db-93ea-00cc75501efc
-func decodeRK(rk uint32) float64 {
-	fX100 := rk&0x1 != 0
-	fInt := rk&0x2 != 0
-
-	var value float64
-	if fInt {
-		value = float64(int32(rk) >> 2)
-	} else {
-		value = math.Float64frombits(uint64(rk>>2) << 34)
+// parseSST decodes the unique strings embedded directly in the SST record's
+// data (XLUnicodeRichExtendedString entries), not as separate BIFF records.
+// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
+func (rec biffRecord) parseSST() (sst []string, err error) {
+	if len(rec.data) < 8 {
+		return nil, errors.New("malformed SST record")
 	}
 
-	if fX100 {
-		value /= 100
+	cstUnique := binary.LittleEndian.Uint32(rec.data[4:8])
+	sst = make([]string, 0, cstUnique)
+
+	data := rec.data[8:]
+	for uint32(len(sst)) < cstUnique {
+		if len(data) < 3 {
+			return nil, errors.New("malformed SST record: truncated string header")
+		}
+
+		cch := int(binary.LittleEndian.Uint16(data[0:2]))
+		flags := data[2]
+		data = data[3:]
+
+		fHighByte := flags&0x1 != 0
+		fExtSt := flags&0x4 != 0
+		fRichSt := flags&0x8 != 0
+
+		crun := 0
+		if fRichSt {
+			if len(data) < 2 {
+				return nil, errors.New("malformed SST record: truncated rich string header")
+			}
+			crun = int(binary.LittleEndian.Uint16(data[0:2]))
+			data = data[2:]
+		}
+
+		cbExtRst := 0
+		if fExtSt {
+			if len(data) < 4 {
+				return nil, errors.New("malformed SST record: truncated ext string header")
+			}
+			cbExtRst = int(binary.LittleEndian.Uint32(data[0:4]))
+			data = data[4:]
+		}
+
+		charBytes := cch
+		if fHighByte {
+			charBytes = cch * 2
+		}
+		if len(data) < charBytes {
+			return nil, errors.New("malformed SST record: truncated string data")
+		}
+
+		var s string
+		if fHighByte {
+			u16 := make([]uint16, cch)
+			for i := range u16 {
+				u16[i] = binary.LittleEndian.Uint16(data[i*2 : i*2+2])
+			}
+			s = string(utf16.Decode(u16))
+		} else {
+			s = string(data[:cch])
+		}
+		data = data[charBytes:]
+
+		runBytes := crun * 4
+		if len(data) < runBytes+cbExtRst {
+			return nil, errors.New("malformed SST record: truncated string trailer")
+		}
+		data = data[runBytes+cbExtRst:]
+
+		sst = append(sst, s)
 	}
 
-	return value
+	return sst, nil
 }
 
 func (rec biffRecord) parseRK() (row, col int, value float64, err error) {
@@ -137,4 +193,41 @@ func (rec biffRecord) parseMULRK() (row int, cols []int, values []float64, err e
 		values[i] = decodeRK(rk)
 	}
 	return row, cols, values, nil
+}
+
+func (rec biffRecord) parseLABELSST(sst []string) (row, col int, value string, err error) {
+	if len(rec.data) < 10 {
+		return 0, 0, "", errors.New("malformed LABELSST record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+
+	idx := binary.LittleEndian.Uint32(rec.data[6:10])
+	s := ""
+	if int(idx) < len(sst) {
+		s = sst[idx]
+	}
+
+	return row, col, s, nil
+}
+
+// decodeRK decodes an RK-encoded number from a BIFF record into a float64 value.
+// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/04fa5340-122f-49db-93ea-00cc75501efc
+func decodeRK(rk uint32) float64 {
+	fX100 := rk&0x1 != 0
+	fInt := rk&0x2 != 0
+
+	var value float64
+	if fInt {
+		value = float64(int32(rk) >> 2)
+	} else {
+		value = math.Float64frombits(uint64(rk>>2) << 34)
+	}
+
+	if fX100 {
+		value /= 100
+	}
+
+	return value
 }
