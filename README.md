@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/b0r1ssh/go-xls/actions/workflows/go-test.yml/badge.svg)](https://github.com/b0r1ssh/go-xls/actions/workflows/go-test.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/b0r1ssh/go-xls.svg)](https://pkg.go.dev/github.com/b0r1ssh/go-xls)
-[![codecov](https://codecov.io/gh/b0r1ssh/go-xls/graph/badge.svg?token=7ZA7WM97TV)](https://codecov.io/gh/b0r1ssh/go-xls)
+[![codecov](https://codecov.io/gh/b0r1ssh/go-xls/graph/badge.svg?token=4PCHLI2CGJ)](https://codecov.io/gh/b0r1ssh/go-xls)
 
 A small Go package for reading legacy Microsoft Excel `.xls` (BIFF8)
 workbooks. It lists worksheet names and streams each sheet's rows over a
