@@ -34,6 +34,21 @@ type File struct {
 
 	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
 	sst []string
+
+	// formats maps a custom number format index (ifmt) to its
+	// format code, as defined by FORMAT records.
+	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/300280fd-e4fe-4675-a924-4d383af48d3b
+	formats map[uint16]string
+
+	// xfFormats holds the number format index (ifmt) of each XF record,
+	// in the order the XF records appear in the stream.
+	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/993d15c4-ec04-43e9-ba36-594dfb336c6d
+	xfFormats []uint16
+
+	// dateSystem1904 indicates whether the workbook uses the 1904 date system
+	// (epoch 1904-01-01) instead of the default 1900 system.
+	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/4a5e900a-0eb0-4355-8fc1-81aab8f46e8b
+	dateSystem1904 bool
 }
 
 // OpenFile opens the .xls workbook at path. The returned File must be
@@ -137,6 +152,31 @@ loop:
 			}
 
 			f.sst = sst
+		case recFORMAT:
+			ifmt, code, err := rec.parseFORMAT()
+			if err != nil {
+				return err
+			}
+
+			if f.formats == nil {
+				f.formats = make(map[uint16]string)
+			}
+
+			f.formats[ifmt] = code
+		case recXF:
+			ifmt, err := rec.parseXF()
+			if err != nil {
+				return err
+			}
+
+			f.xfFormats = append(f.xfFormats, ifmt)
+		case recDATEMODE:
+			is1904, err := rec.parseDATEMODE()
+			if err != nil {
+				return err
+			}
+
+			f.dateSystem1904 = is1904
 		}
 	}
 

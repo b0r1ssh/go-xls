@@ -96,22 +96,30 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 				cur.Index = int(rw)
 			}
 		case recRK:
-			rw, col, value, err := rec.parseRK()
+			rw, col, ixfe, value, err := rec.parseRK()
 			if err != nil {
 				fail(err)
 				continue
 			}
 
-			add(rw, addCellNumeric(col, value))
+			if f.isDateXFE(ixfe) {
+				add(rw, addCellDate(col, f.excelDateTime(value)))
+			} else {
+				add(rw, addCellNumeric(col, value))
+			}
 		case recMULRK:
-			rw, cols, values, err := rec.parseMULRK()
+			rw, cols, ixfes, values, err := rec.parseMULRK()
 			if err != nil {
 				fail(err)
 				continue
 			}
 
 			for i := range cols {
-				add(rw, addCellNumeric(cols[i], values[i]))
+				if f.isDateXFE(ixfes[i]) {
+					add(rw, addCellDate(cols[i], f.excelDateTime(values[i])))
+				} else {
+					add(rw, addCellNumeric(cols[i], values[i]))
+				}
 			}
 		case recLABELSST:
 			rw, col, value, err := rec.parseLABELSST(f.sst)

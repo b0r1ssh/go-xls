@@ -1,5 +1,7 @@
 package xls
 
+import "time"
+
 // Row is one row of cells read from a sheet. If Error is non-nil, the
 // other fields are not meaningful.
 type Row struct {
@@ -18,6 +20,8 @@ const (
 	TypeNumeric
 	// TypeBoolean means Value is a bool.
 	TypeBoolean
+	// TypeDate means Value is a time.Time.
+	TypeDate
 )
 
 // Cell is a single spreadsheet cell.
@@ -65,6 +69,14 @@ func addCellBoolean(col int, value bool) Cell {
 	return Cell{
 		Column: columnLabel(col),
 		Type:   TypeBoolean,
+		Value:  value,
+	}
+}
+
+func addCellDate(col int, value time.Time) Cell {
+	return Cell{
+		Column: columnLabel(col),
+		Type:   TypeDate,
 		Value:  value,
 	}
 }

@@ -2,6 +2,7 @@ package xls_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/b0r1ssh/go-xls"
 )
@@ -71,6 +72,11 @@ func TestXLSReadRows(t *testing.T) {
 				{Column: "C", Type: xls.TypeNumeric, Value: float64(3)},
 			}},
 			{"bool.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeBoolean, Value: true}}},
+			{"date.xls", 1, []xls.Cell{
+				{Column: "A", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{Column: "B", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{Column: "C", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
+			}},
 		}
 
 		for _, tt := range tests {
