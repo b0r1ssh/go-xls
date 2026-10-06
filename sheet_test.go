@@ -125,4 +125,27 @@ func TestXLSReadRows(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("big sheet", func(t *testing.T) {
+		t.Parallel()
+
+		f, err := xls.OpenFile("testdata/all.xls")
+		if err != nil {
+			t.Fatalf("failed to open file: %v", err)
+		}
+		t.Cleanup(func() {
+			if err := f.Close(); err != nil {
+				t.Fatalf("failed to close file")
+			}
+		})
+
+		rowCount := 0
+		for range f.ReadRows("Sheet 1") {
+			rowCount++
+		}
+
+		if rowCount != 15000 {
+			t.Fatalf("expected 15000 rows for all.xls, got %d", rowCount)
+		}
+	})
 }
