@@ -81,12 +81,6 @@ func OpenReader(r io.ReaderAt) (*File, error) {
 	return f, nil
 }
 
-// Close is a no-op; File holds no open resources after OpenFile or
-// OpenReader returns. It exists so callers can always defer f.Close().
-func (f *File) Close() error {
-	return nil
-}
-
 // SheetNames returns the names of the workbook's visible worksheets, in
 // the order they appear in Excel.
 func (f *File) SheetNames() []string {
