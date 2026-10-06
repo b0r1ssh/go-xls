@@ -1,3 +1,6 @@
+// Package xls reads legacy Microsoft Excel .xls (BIFF8) workbooks. It
+// exposes the sheet names of a workbook and streams each sheet's rows
+// without loading the whole sheet into memory.
 package xls
 
 import (
@@ -13,6 +16,7 @@ type streamReader interface {
 	io.Seeker
 }
 
+// Sheet is a worksheet within a workbook.
 type Sheet struct {
 	// Name is the worksheet's name as shown in Excel.
 	name string
@@ -20,6 +24,7 @@ type Sheet struct {
 	offset uint32
 }
 
+// File is an opened .xls workbook. Call Close when done with it.
 type File struct {
 	closer io.Closer
 
@@ -31,6 +36,8 @@ type File struct {
 	sst []string
 }
 
+// OpenFile opens the .xls workbook at path. The returned File must be
+// closed with Close.
 func OpenFile(path string) (*File, error) {
 	o, err := os.Open(path)
 	if err != nil {
@@ -47,6 +54,8 @@ func OpenFile(path string) (*File, error) {
 	return f, nil
 }
 
+// OpenReader opens a .xls workbook from r. Unlike OpenFile, the caller
+// retains ownership of r and Close will not close it.
 func OpenReader(r io.ReaderAt) (*File, error) {
 	container, err := cfb.Open(r)
 	if err != nil {
@@ -69,6 +78,8 @@ func OpenReader(r io.ReaderAt) (*File, error) {
 	return f, nil
 }
 
+// Close releases resources associated with the File. If the File was
+// obtained with OpenReader, Close is a no-op.
 func (f *File) Close() error {
 	if f.closer != nil {
 		return f.closer.Close()
@@ -76,6 +87,8 @@ func (f *File) Close() error {
 	return nil
 }
 
+// SheetNames returns the names of the workbook's visible worksheets, in
+// the order they appear in Excel.
 func (f *File) SheetNames() []string {
 	names := make([]string, len(f.sheets))
 	for i, sheet := range f.sheets {
