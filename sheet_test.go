@@ -59,13 +59,15 @@ func TestXLSReadRows(t *testing.T) {
 		t.Parallel()
 
 		tests := []struct {
-			name         string
-			expectedRows int
-			expectedCols int
+			name               string
+			expectedRows       int
+			expectedCells      int
+			expectedCellValues []any
 		}{
-			{"number.xls", 1, 1},
-			{"string.xls", 1, 1},
-			{"hour.xls", 1, 1},
+			{"number.xls", 1, 1, []any{float64(1)}},
+			{"string.xls", 1, 1, []any{""}},
+			{"multi_number.xls", 1, 3, []any{float64(1), float64(2), float64(3)}},
+			{"bool.xls", 1, 1, []any{true}},
 		}
 
 		for _, tt := range tests {
@@ -84,18 +86,29 @@ func TestXLSReadRows(t *testing.T) {
 
 				i := 0
 				j := 0
+				v := make([]any, tt.expectedCells)
 				for row := range f.ReadRows("Sheet 1") {
 					i++
 
 					j = len(row.Cells)
+
+					for i, cell := range row.Cells {
+						v[i] = cell.Value
+					}
 				}
 
 				if i != tt.expectedRows {
 					t.Fatalf("expected %d rows for %s, got %d", tt.expectedRows, tt.name, i)
 				}
 
-				if j != tt.expectedCols {
-					t.Fatalf("expected %d cols for %s, got %d", tt.expectedCols, tt.name, j)
+				if j != tt.expectedCells {
+					t.Fatalf("expected %d cols for %s, got %d", tt.expectedCells, tt.name, j)
+				}
+
+				for k, expected := range tt.expectedCellValues {
+					if v[k] != expected {
+						t.Fatalf("expected cell value %v at index %d for %s, got %v on file %s", expected, k, tt.name, v[k], tt.name)
+					}
 				}
 			})
 		}

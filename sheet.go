@@ -93,14 +93,23 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 				cur.Index = int(rw)
 			}
 		case recRK:
-			if len(rec.data) < 10 {
+			rw, col, value, err := rec.parseRK()
+			if err != nil {
+				fail(err)
 				continue
 			}
 
-			rw := int(binary.LittleEndian.Uint16(rec.data[0:2]))
-			col := int(binary.LittleEndian.Uint16(rec.data[2:4]))
+			add(rw, addCellNumeric(col, value))
+		case recMULRK:
+			rw, cols, values, err := rec.parseMULRK()
+			if err != nil {
+				fail(err)
+				continue
+			}
 
-			add(rw, addCellNumeric(col))
+			for i := range cols {
+				add(rw, addCellNumeric(cols[i], values[i]))
+			}
 		case recLABELSST:
 			if len(rec.data) < 10 {
 				continue
@@ -109,7 +118,17 @@ func (f *File) readSheetRows(sheet Sheet, ch chan<- Row) {
 			rw := int(binary.LittleEndian.Uint16(rec.data[0:2]))
 			col := int(binary.LittleEndian.Uint16(rec.data[2:4]))
 
-			add(rw, addCellString(col))
+			// TODO: Use SST
+			// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
+			add(rw, addCellString(col, ""))
+		case recBOOLERR:
+			rw, col, value, err := rec.parseBOOLERR()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			add(rw, addCellBoolean(col, value))
 		default:
 			fmt.Printf("unknown record type: %#04x\n", rec.recType)
 
