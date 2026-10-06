@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/b0r1sh/go-xls"
+	"github.com/b0r1ssh/go-xls"
 )
 
 func TestXLSOpenFile(t *testing.T) {

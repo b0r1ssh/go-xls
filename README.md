@@ -20,7 +20,7 @@ channel without loading the whole sheet into memory.
 ## Installation
 
 ```sh
-go get github.com/b0r1sh/go-xls
+go get github.com/b0r1ssh/go-xls
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/b0r1sh/go-xls"
+	"github.com/b0r1ssh/go-xls"
 )
 
 func main() {

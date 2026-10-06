@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/b0r1sh/go-xls/internal/cfb"
+	"github.com/b0r1ssh/go-xls/internal/cfb"
 )
 
 // newTestStream builds a minimal CFB image with a single two-sector stream
