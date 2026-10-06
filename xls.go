@@ -26,6 +26,9 @@ type File struct {
 	stream streamReader
 
 	sheets []Sheet
+
+	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
+	sst []string
 }
 
 func OpenFile(path string) (*File, error) {
@@ -114,6 +117,13 @@ loop:
 					offset: offset,
 				})
 			}
+		case recSST:
+			sst, err := rec.parseSST()
+			if err != nil {
+				return err
+			}
+
+			f.sst = sst
 		}
 	}
 
