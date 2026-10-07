@@ -137,7 +137,7 @@ loop:
 				})
 			}
 		case recSST:
-			sst, err := rec.parseSST()
+			sst, err := rec.parseSST(rr)
 			if err != nil {
 				return err
 			}

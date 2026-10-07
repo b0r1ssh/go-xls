@@ -47,6 +47,15 @@ func TestXLSOpenFile(t *testing.T) {
 		}
 	})
 
+	t.Run("open file with valid SST record", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := xls.OpenFile("testdata/valid_sst.xls")
+		if err != nil {
+			t.Fatalf("failed to open file with valid SST record: %v", err)
+		}
+	})
+
 	t.Run("open file with malformed SST record", func(t *testing.T) {
 		t.Parallel()
 
