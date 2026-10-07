@@ -111,6 +111,41 @@ func TestXLSReadRows(t *testing.T) {
 		}
 	})
 
+	t.Run("malformed cell record", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name string
+		}{
+			{"invalid_number.xls"},
+			{"invalid_string.xls"},
+			{"invalid_bool.xls"},
+			{"invalid_multi_number.xls"},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				f, err := xls.OpenFile("testdata/" + tt.name)
+				if err != nil {
+					t.Fatalf("failed to open file: %v", err)
+				}
+
+				var rowErrs []error
+				for row := range f.ReadRows("Sheet 1") {
+					if row.Error != nil {
+						rowErrs = append(rowErrs, row.Error)
+					}
+				}
+
+				if len(rowErrs) == 0 {
+					t.Fatalf("expected a row error for %s, got none", tt.name)
+				}
+			})
+		}
+	})
+
 	t.Run("big sheet", func(t *testing.T) {
 		t.Parallel()
 
