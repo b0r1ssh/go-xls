@@ -46,6 +46,30 @@ func TestXLSOpenFile(t *testing.T) {
 			t.Fatalf("expected error when opening file with malformed BOUNDSHEET record")
 		}
 	})
+
+	t.Run("open file with malformed SST record", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []string{
+			"invalid_sst_short.xls",
+			"invalid_sst_header.xls",
+			"invalid_sst_rich_header.xls",
+			"invalid_sst_ext_header.xls",
+			"invalid_sst_data.xls",
+			"invalid_sst_trailer.xls",
+		}
+
+		for _, name := range tests {
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+
+				_, err := xls.OpenFile("testdata/" + name)
+				if err == nil {
+					t.Fatalf("expected error when opening file with malformed SST record")
+				}
+			})
+		}
+	})
 }
 
 func TestXLSOpenReader(t *testing.T) {
@@ -94,6 +118,20 @@ func TestXLSSheetNames(t *testing.T) {
 		names := f.SheetNames()
 		if len(names) != 1 {
 			t.Fatalf("expected 1 sheet name, got %d", len(names))
+		}
+	})
+
+	t.Run("sheet name with non-Latin1 characters", func(t *testing.T) {
+		t.Parallel()
+
+		f, err := xls.OpenFile("testdata/unicode_sheet.xls")
+		if err != nil {
+			t.Fatalf("failed to open file: %v", err)
+		}
+
+		names := f.SheetNames()
+		if len(names) != 1 || names[0] != "日本語" {
+			t.Fatalf("expected sheet name %q, got %v", "日本語", names)
 		}
 	})
 }

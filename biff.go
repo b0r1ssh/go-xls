@@ -64,11 +64,19 @@ func (rec biffRecord) parseBOUNDSHEET() (offset uint32, sheetType byte, name str
 	offset = binary.LittleEndian.Uint32(rec.data[0:4])
 	sheetType = rec.data[5]
 	cch := int(rec.data[6])
+	flags := rec.data[7]
+	fHighByte := flags&0x1 != 0
 	chars := rec.data[8:]
 
-	u16 := make([]uint16, cch)
-	for i := 0; i < len(chars) && i < cch; i++ {
-		u16[i] = uint16(chars[i])
+	u16 := make([]uint16, 0, cch)
+	if fHighByte {
+		for i := 0; i+1 < len(chars) && len(u16) < cch; i += 2 {
+			u16 = append(u16, binary.LittleEndian.Uint16(chars[i:i+2]))
+		}
+	} else {
+		for i := 0; i < len(chars) && len(u16) < cch; i++ {
+			u16 = append(u16, uint16(chars[i]))
+		}
 	}
 
 	name = string(utf16.Decode(u16))
@@ -222,7 +230,6 @@ func (rec biffRecord) parseLABELSST(sst []string) (row, col int, value string, e
 
 	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
 	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
-
 	idx := binary.LittleEndian.Uint32(rec.data[6:10])
 	s := ""
 	if int(idx) < len(sst) {
