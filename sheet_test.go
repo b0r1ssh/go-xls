@@ -148,6 +148,39 @@ func TestXLSReadRows(t *testing.T) {
 		}
 	})
 
+	t.Run("unicode sheet name", func(t *testing.T) {
+		t.Parallel()
+
+		f, err := xls.OpenFile("testdata/unicode_sheet.xls")
+		if err != nil {
+			t.Fatalf("failed to open file: %v", err)
+		}
+
+		rows := make([]xls.Row, 0, 1)
+		for row := range f.ReadRows("日本語") {
+			rows = append(rows, row)
+		}
+
+		if len(rows) != 1 {
+			t.Fatalf("expected 1 row, got %d", len(rows))
+		}
+
+		cells := []xls.Cell{
+			{Column: "A", Type: xls.TypeNumeric, Value: float64(1)},
+			{Column: "B", Type: xls.TypeString, Value: "日本語"},
+		}
+
+		if len(rows[0].Cells) != len(cells) {
+			t.Fatalf("expected cells %v, got %v", cells, rows[0].Cells)
+		}
+
+		for i := range cells {
+			if rows[0].Cells[i] != cells[i] {
+				t.Fatalf("expected cell %v for unicode sheet, got %v", cells[i], rows[0].Cells[i])
+			}
+		}
+	})
+
 	t.Run("big sheet", func(t *testing.T) {
 		t.Parallel()
 
