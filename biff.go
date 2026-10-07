@@ -17,6 +17,7 @@ const (
 	recSST        = 0x00FC
 	recRK         = 0x027E
 	recMULRK      = 0x00BD
+	recNUMBER     = 0x0203
 	recLABELSST   = 0x00FD
 	recBOOLERR    = 0x0205
 	recFORMAT     = 0x041E
@@ -160,6 +161,20 @@ func (rec biffRecord) parseRK() (row, col int, ixfe uint16, value float64, err e
 	rk := binary.LittleEndian.Uint32(rec.data[6:10])
 
 	return row, col, ixfe, decodeRK(rk), nil
+}
+
+func (rec biffRecord) parseNUMBER() (row, col int, ixfe uint16, value float64, err error) {
+	if len(rec.data) < 14 {
+		return 0, 0, 0, 0, errors.New("malformed NUMBER record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+	ixfe = binary.LittleEndian.Uint16(rec.data[4:6])
+	bits := binary.LittleEndian.Uint64(rec.data[6:14])
+	value = math.Float64frombits(bits)
+
+	return row, col, ixfe, value, nil
 }
 
 func (rec biffRecord) parseBOOLERR() (row, col int, value bool, err error) {
