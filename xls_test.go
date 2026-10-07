@@ -37,6 +37,15 @@ func TestXLSOpenFile(t *testing.T) {
 			t.Fatalf("expected error when opening invalid file")
 		}
 	})
+
+	t.Run("open file with malformed BOUNDSHEET record", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := xls.OpenFile("testdata/invalid_sheet.xls")
+		if err == nil {
+			t.Fatalf("expected error when opening file with malformed BOUNDSHEET record")
+		}
+	})
 }
 
 func TestXLSOpenReader(t *testing.T) {
