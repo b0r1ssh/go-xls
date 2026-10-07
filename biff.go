@@ -23,6 +23,7 @@ const (
 	recFORMAT     = 0x041E
 	recXF         = 0x00E0
 	recDATEMODE   = 0x0022
+	recCONTINUE   = 0x003C
 )
 
 type biffRecord struct {
@@ -84,9 +85,10 @@ func (rec biffRecord) parseBOUNDSHEET() (offset uint32, sheetType byte, name str
 }
 
 // parseSST decodes the unique strings embedded directly in the SST record's
-// data (XLUnicodeRichExtendedString entries), not as separate BIFF records.
+// data (XLUnicodeRichExtendedString entries), pulling CONTINUE records from
+// rr for SST records too large to fit in a single BIFF record.
 // https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/3f52609d-816f-44a7-aad1-e0fe2abccebd
-func (rec biffRecord) parseSST() (sst []string, err error) {
+func (rec biffRecord) parseSST(rr *recordReader) (sst []string, err error) {
 	if len(rec.data) < 8 {
 		return nil, errors.New("malformed SST record")
 	}
@@ -94,15 +96,15 @@ func (rec biffRecord) parseSST() (sst []string, err error) {
 	cstUnique := binary.LittleEndian.Uint32(rec.data[4:8])
 	sst = make([]string, 0, cstUnique)
 
-	data := rec.data[8:]
+	s := &sstReader{rr: rr, data: rec.data[8:]}
 	for uint32(len(sst)) < cstUnique {
-		if len(data) < 3 {
+		hdr, err := s.readBytes(3)
+		if err != nil {
 			return nil, errors.New("malformed SST record: truncated string header")
 		}
 
-		cch := int(binary.LittleEndian.Uint16(data[0:2]))
-		flags := data[2]
-		data = data[3:]
+		cch := int(binary.LittleEndian.Uint16(hdr[0:2]))
+		flags := hdr[2]
 
 		fHighByte := flags&0x1 != 0
 		fExtSt := flags&0x4 != 0
@@ -110,49 +112,34 @@ func (rec biffRecord) parseSST() (sst []string, err error) {
 
 		crun := 0
 		if fRichSt {
-			if len(data) < 2 {
+			b, err := s.readBytes(2)
+			if err != nil {
 				return nil, errors.New("malformed SST record: truncated rich string header")
 			}
-			crun = int(binary.LittleEndian.Uint16(data[0:2]))
-			data = data[2:]
+
+			crun = int(binary.LittleEndian.Uint16(b))
 		}
 
 		cbExtRst := 0
 		if fExtSt {
-			if len(data) < 4 {
+			b, err := s.readBytes(4)
+			if err != nil {
 				return nil, errors.New("malformed SST record: truncated ext string header")
 			}
-			cbExtRst = int(binary.LittleEndian.Uint32(data[0:4]))
-			data = data[4:]
+
+			cbExtRst = int(binary.LittleEndian.Uint32(b))
 		}
 
-		charBytes := cch
-		if fHighByte {
-			charBytes = cch * 2
-		}
-		if len(data) < charBytes {
+		str, err := s.readChars(cch, fHighByte)
+		if err != nil {
 			return nil, errors.New("malformed SST record: truncated string data")
 		}
 
-		var s string
-		if fHighByte {
-			u16 := make([]uint16, cch)
-			for i := range u16 {
-				u16[i] = binary.LittleEndian.Uint16(data[i*2 : i*2+2])
-			}
-			s = string(utf16.Decode(u16))
-		} else {
-			s = string(data[:cch])
-		}
-		data = data[charBytes:]
-
-		runBytes := crun * 4
-		if len(data) < runBytes+cbExtRst {
+		if _, err := s.readBytes(crun*4 + cbExtRst); err != nil {
 			return nil, errors.New("malformed SST record: truncated string trailer")
 		}
-		data = data[runBytes+cbExtRst:]
 
-		sst = append(sst, s)
+		sst = append(sst, str)
 	}
 
 	return sst, nil
