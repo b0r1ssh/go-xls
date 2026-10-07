@@ -5,15 +5,15 @@
 [![codecov](https://codecov.io/gh/b0r1ssh/go-xls/graph/badge.svg?token=4PCHLI2CGJ)](https://codecov.io/gh/b0r1ssh/go-xls)
 
 A small Go package for reading legacy Microsoft Excel `.xls` (BIFF8)
-workbooks. It lists worksheet names and streams each sheet's rows over a
-channel without loading the whole sheet into memory.
+workbooks. It lists worksheet names and streams each sheet's rows as an
+iterator without loading the whole sheet into memory.
 
 ## Features
 
 - Open workbooks from a file path or any `io.ReaderAt`
 - List the names of a workbook's visible worksheets
-- Stream rows of a sheet as they are parsed, instead of buffering the
-  whole sheet
+- Stream rows of a sheet as an `iter.Seq[Row]` iterator as they are parsed,
+  instead of buffering the whole sheet
 - String, numeric, date, and boolean cell values, with spreadsheet-style
   column labels (`A`, `B`, ..., `AA`, ...)
 

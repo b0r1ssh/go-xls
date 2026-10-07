@@ -85,9 +85,7 @@ func TestXLSReadRows(t *testing.T) {
 				for row := range f.ReadRows("Sheet 1") {
 					rows = append(rows, row)
 
-					for _, cell := range row.Cells {
-						cells = append(cells, cell)
-					}
+					cells = append(cells, row.Cells...)
 				}
 
 				if len(rows) != tt.expectedRows {
