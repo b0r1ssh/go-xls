@@ -20,6 +20,7 @@ const (
 	recNUMBER     = 0x0203
 	recLABELSST   = 0x00FD
 	recBOOLERR    = 0x0205
+	recROW        = 0x0208
 	recFORMAT     = 0x041E
 	recXF         = 0x00E0
 	recDATEMODE   = 0x0022
@@ -224,6 +225,18 @@ func (rec biffRecord) parseLABELSST(sst []string) (row, col int, value string, e
 	}
 
 	return row, col, s, nil
+}
+
+func (rec biffRecord) parseROW() (row int, firstCol, lastCol uint16, err error) {
+	if len(rec.data) < 6 {
+		return 0, 0, 0, errors.New("malformed ROW record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	firstCol = binary.LittleEndian.Uint16(rec.data[2:4])
+	lastCol = binary.LittleEndian.Uint16(rec.data[4:6]) - 1
+
+	return row, firstCol, lastCol, nil
 }
 
 func (rec biffRecord) parseFORMAT() (ifmt uint16, code string, err error) {

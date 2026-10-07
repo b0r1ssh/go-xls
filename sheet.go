@@ -38,6 +38,11 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 
 	cur := Row{Index: -1}
 
+	// ROW records for a block of rows arrive together, ahead of the cell
+	// records for that block, so a span may need to wait until its row
+	// is actually started by a cell.
+	pendingSpans := make(map[int][2]uint16)
+
 	rowWidth := 0
 	stopped := false
 	flush := func() {
@@ -59,14 +64,23 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 		}
 	}
 
-	add := func(rw int, c Cell) {
+	ensureRow := func(rw int) {
 		if cur.Index != rw {
 			flush()
 			cur.Index = rw
 			if rowWidth > 0 {
 				cur.Cells = make([]Cell, 0, rowWidth)
 			}
+
+			if span, ok := pendingSpans[rw]; ok {
+				cur.FirstCol, cur.LastCol = span[0], span[1]
+				delete(pendingSpans, rw)
+			}
 		}
+	}
+
+	add := func(rw int, c Cell) {
+		ensureRow(rw)
 		cur.Cells = append(cur.Cells, c)
 	}
 
@@ -144,6 +158,18 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 			}
 
 			add(rw, addCellBoolean(col, value))
+		case recROW:
+			rw, firstCol, lastCol, err := rec.parseROW()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			if cur.Index == rw {
+				cur.FirstCol, cur.LastCol = firstCol, lastCol
+			} else {
+				pendingSpans[rw] = [2]uint16{firstCol, lastCol}
+			}
 		default:
 			continue
 		}
