@@ -146,7 +146,8 @@ func (s *Stream) readSector(sector uint32) ([]byte, error) {
 
 	off := (int64(sector) + 1) * int64(secSize)
 	n, err := s.r.ra.ReadAt(buf, off)
-	if err != nil && !(n > 0 && (errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF))) {
+
+	if err != nil && (n <= 0 || (!errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF))) {
 		s.secValid = false
 		return nil, err
 	}
