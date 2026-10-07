@@ -16,6 +16,8 @@ iterator without loading the whole sheet into memory.
   instead of buffering the whole sheet
 - String, numeric, date, and boolean cell values, with spreadsheet-style
   column labels (`A`, `B`, ..., `AA`, ...)
+- Each `Row` reports `FirstCol`/`LastCol`, the 0-based column range Excel
+  recorded as having data, even if some of those columns are empty
 
 ## Installation
 
@@ -54,6 +56,17 @@ func main() {
 			fmt.Printf("%s%d = %v\n", cell.Column, row.Index+1, cell.Value)
 		}
 	}
+}
+```
+
+`Row.Cells` only contains cells that hold a value, so blank cells in the
+middle of a row are skipped. Use `Row.FirstCol` and `Row.LastCol` to know the
+full column range Excel recorded for the row instead of inferring it from
+`Cells`:
+
+```go
+for row := range f.ReadRows("Sheet1") {
+	fmt.Printf("row %d spans columns %d to %d\n", row.Index, row.FirstCol, row.LastCol)
 }
 ```
 

@@ -111,6 +111,43 @@ func TestXLSReadRows(t *testing.T) {
 		}
 	})
 
+	t.Run("first and last col", func(t *testing.T) {
+		t.Parallel()
+
+		tests := []struct {
+			name             string
+			expectedFirstCol uint16
+			expectedLastCol  uint16
+		}{
+			{"string.xls", 0, 0},
+			{"multi_number.xls", 0, 2},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
+
+				f, err := xls.OpenFile("testdata/" + tt.name)
+				if err != nil {
+					t.Fatalf("failed to open file: %v", err)
+				}
+
+				var row xls.Row
+				for r := range f.ReadRows("Sheet 1") {
+					row = r
+					break
+				}
+
+				if row.FirstCol != tt.expectedFirstCol {
+					t.Fatalf("expected FirstCol %d for %s, got %d", tt.expectedFirstCol, tt.name, row.FirstCol)
+				}
+				if row.LastCol != tt.expectedLastCol {
+					t.Fatalf("expected LastCol %d for %s, got %d", tt.expectedLastCol, tt.name, row.LastCol)
+				}
+			})
+		}
+	})
+
 	t.Run("malformed cell record", func(t *testing.T) {
 		t.Parallel()
 

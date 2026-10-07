@@ -8,6 +8,11 @@ type Row struct {
 	Index int
 	Cells []Cell
 	Error error
+
+	// FirstCol and LastCol are the 0-based range of columns that carry
+	// data in this row, as recorded by Excel's ROW record.
+	FirstCol uint16
+	LastCol  uint16
 }
 
 // CellType identifies the Go type stored in a Cell's Value.
