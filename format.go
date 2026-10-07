@@ -75,6 +75,9 @@ func (f *File) excelDateTime(serial float64) time.Time {
 	epoch := epoch1899
 	if f.dateSystem1904 {
 		epoch = epoch1904
+	} else if serial < 60 {
+		// Excel's 1900 date system wrongly treats 1900 as a leap year
+		epoch = epoch.AddDate(0, 0, 1)
 	}
 
 	days := math.Floor(serial)

@@ -67,6 +67,8 @@ func TestXLSReadRows(t *testing.T) {
 				{Column: "B", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
 				{Column: "C", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
 			}},
+			{"pourcentage.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(0.01)}}},
+			{"hour.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeDate, Value: time.Date(1900, time.January, 1, 1, 0, 0, 0, time.UTC)}}},
 		}
 
 		for _, tt := range tests {
@@ -149,7 +151,7 @@ func TestXLSReadRows(t *testing.T) {
 	t.Run("big sheet", func(t *testing.T) {
 		t.Parallel()
 
-		f, err := xls.OpenFile("testdata/all.xls")
+		f, err := xls.OpenFile("testdata/big.xls")
 		if err != nil {
 			t.Fatalf("failed to open file: %v", err)
 		}
@@ -160,7 +162,7 @@ func TestXLSReadRows(t *testing.T) {
 		}
 
 		if rowCount != 15000 {
-			t.Fatalf("expected 15000 rows for all.xls, got %d", rowCount)
+			t.Fatalf("expected 15000 rows for big.xls, got %d", rowCount)
 		}
 	})
 }

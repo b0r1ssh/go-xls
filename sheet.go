@@ -116,6 +116,18 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 					add(rw, addCellNumeric(cols[i], values[i]))
 				}
 			}
+		case recNUMBER:
+			rw, col, ixfe, value, err := rec.parseNUMBER()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			if f.isDateXFE(ixfe) {
+				add(rw, addCellDate(col, f.excelDateTime(value)))
+			} else {
+				add(rw, addCellNumeric(col, value))
+			}
 		case recLABELSST:
 			rw, col, value, err := rec.parseLABELSST(f.sst)
 			if err != nil {
