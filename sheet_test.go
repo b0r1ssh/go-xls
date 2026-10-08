@@ -54,21 +54,21 @@ func TestXLSReadRows(t *testing.T) {
 			expectedRows  int
 			expectedCells []xls.Cell
 		}{
-			{"number.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(1)}}},
-			{"string.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeString, Value: "hello"}}},
+			{"number.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(1), Index: 0}}},
+			{"string.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeString, Value: "hello", Index: 0}}},
 			{"multi_number.xls", 1, []xls.Cell{
-				{Column: "A", Type: xls.TypeNumeric, Value: float64(1)},
-				{Column: "B", Type: xls.TypeNumeric, Value: float64(2)},
-				{Column: "C", Type: xls.TypeNumeric, Value: float64(3)},
+				{Column: "A", Type: xls.TypeNumeric, Value: float64(1), Index: 0},
+				{Column: "B", Type: xls.TypeNumeric, Value: float64(2), Index: 1},
+				{Column: "C", Type: xls.TypeNumeric, Value: float64(3), Index: 2},
 			}},
-			{"bool.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeBoolean, Value: true}}},
+			{"bool.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeBoolean, Value: true, Index: 0}}},
 			{"date.xls", 1, []xls.Cell{
-				{Column: "A", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
-				{Column: "B", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
-				{Column: "C", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC)},
+				{Column: "A", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC), Index: 0},
+				{Column: "B", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC), Index: 1},
+				{Column: "C", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC), Index: 2},
 			}},
-			{"pourcentage.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(0.01)}}},
-			{"hour.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeDate, Value: time.Date(1900, time.January, 1, 1, 0, 0, 0, time.UTC)}}},
+			{"pourcentage.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(0.01), Index: 0}}},
+			{"hour.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeDate, Value: time.Date(1900, time.January, 1, 1, 0, 0, 0, time.UTC), Index: 0}}},
 		}
 
 		for _, tt := range tests {
@@ -201,8 +201,8 @@ func TestXLSReadRows(t *testing.T) {
 		}
 
 		cells := []xls.Cell{
-			{Column: "A", Type: xls.TypeNumeric, Value: float64(1)},
-			{Column: "B", Type: xls.TypeString, Value: "日本語"},
+			{Column: "A", Type: xls.TypeNumeric, Value: float64(1), Index: 0},
+			{Column: "B", Type: xls.TypeString, Value: "日本語", Index: 1},
 		}
 
 		if len(rows[0].Cells) != len(cells) {
