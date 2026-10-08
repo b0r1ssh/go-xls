@@ -5,8 +5,13 @@ import "time"
 // Row is one row of cells read from a sheet. If Error is non-nil, the
 // other fields are not meaningful.
 type Row struct {
+	// Index is the 0-based index of this row within the sheet.
 	Index int
+
+	// Cells holds the individual cells in this row.
 	Cells []Cell
+
+	// Error holds any error encountered while reading this row.
 	Error error
 
 	// FirstCol and LastCol are the 0-based range of columns that carry
@@ -16,7 +21,7 @@ type Row struct {
 }
 
 // CellType identifies the Go type stored in a Cell's Value.
-type CellType int
+type CellType uint8
 
 const (
 	// TypeString means Value is a string.
@@ -34,9 +39,14 @@ type Cell struct {
 	// Column is the spreadsheet-style column label, e.g. "A", "B", "AA".
 	Column string
 
-	Type CellType
-
+	// Value holds the actual value of the cell. Its type is indicated by Type.
 	Value any
+
+	// Index is the 0-based index of this cell within its row.
+	Index int
+
+	// Type indicates the type of value stored in this cell.
+	Type CellType
 }
 
 var columnNames = func() [256]string {
@@ -74,6 +84,7 @@ func addCellString(col int, value string) Cell {
 		Column: columnLabel(col),
 		Type:   TypeString,
 		Value:  value,
+		Index:  col,
 	}
 }
 
@@ -82,6 +93,7 @@ func addCellNumeric(col int, value float64) Cell {
 		Column: columnLabel(col),
 		Type:   TypeNumeric,
 		Value:  value,
+		Index:  col,
 	}
 }
 
@@ -90,6 +102,7 @@ func addCellBoolean(col int, value bool) Cell {
 		Column: columnLabel(col),
 		Type:   TypeBoolean,
 		Value:  value,
+		Index:  col,
 	}
 }
 
@@ -98,5 +111,6 @@ func addCellDate(col int, value time.Time) Cell {
 		Column: columnLabel(col),
 		Type:   TypeDate,
 		Value:  value,
+		Index:  col,
 	}
 }
