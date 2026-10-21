@@ -70,6 +70,12 @@ for row := range f.ReadRows("Sheet1") {
 }
 ```
 
+## Reader benchmarks
+
+[benchmarks/](benchmarks) compares reading a large `.xls` file with this
+package and four other Go `.xls` readers, with results and instructions for
+running it yourself in [benchmarks/README.md](benchmarks/README.md).
+
 ## Release workflow for contributors
 
 Merging a pull request into `main` automatically creates a Git tag and a
