@@ -173,19 +173,22 @@ func (rec biffRecord) parseNUMBER() (row, col int, ixfe uint16, value float64, e
 	return row, col, ixfe, value, nil
 }
 
-func (rec biffRecord) parseBOOLERR() (row, col int, value bool, err error) {
-	if len(rec.data) < 6 {
-		return 0, 0, false, errors.New("malformed BOOLERR record")
+func (rec biffRecord) parseBOOLERR() (row, col int, value any, isBoolean bool, err error) {
+	if len(rec.data) < 8 {
+		return 0, 0, nil, false, errors.New("malformed BOOLERR record")
 	}
 
 	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
 	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
-	value = rec.data[6] != 0
+	isBoolean = rec.data[7] == 0
 
-	// TODO: handle error values
-	// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/4a18edf4-b88c-4b39-a857-b31757314d0f
+	if isBoolean {
+		value = rec.data[6] != 0
+	} else {
+		value = formulaError(rec.data[6])
+	}
 
-	return row, col, value, nil
+	return row, col, value, isBoolean, nil
 }
 
 func (rec biffRecord) parseMULRK() (row int, cols []int, ixfes []uint16, values []float64, err error) {
@@ -308,4 +311,31 @@ func decodeRK(rk uint32) float64 {
 	}
 
 	return value
+}
+
+// formulaError returns the string representation of a formula error code.
+// https://learn.microsoft.com/en-us/openspecs/office_file_formats/ms-xls/4a18edf4-b88c-4b39-a857-b31757314d0f
+func formulaError(code byte) string {
+	switch code {
+	case 0x00:
+		return "#NULL!"
+	case 0x07:
+		return "#DIV/0!"
+	case 0x0F:
+		return "#VALUE!"
+	case 0x17:
+		return "#REF!"
+	case 0x1D:
+		return "#NAME?"
+	case 0x24:
+		return "#NUM!"
+	case 0x2A:
+		return "#N/A"
+	case 0x2B:
+		return "#GETTING_DATA"
+	}
+
+	// If the error code is not recognized, return a generic error string with the code.
+	// Not officially documented, but this provides a fallback for unknown error codes.
+	return fmt.Sprintf("#ERROR(0x%02X)!", code)
 }
