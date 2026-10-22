@@ -61,7 +61,10 @@ func TestXLSReadRows(t *testing.T) {
 				{Column: "B", Type: xls.TypeNumeric, Value: float64(2), Index: 1},
 				{Column: "C", Type: xls.TypeNumeric, Value: float64(3), Index: 2},
 			}},
-			{"bool.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeBoolean, Value: true, Index: 0}}},
+			{"bool.xls", 1, []xls.Cell{
+				{Column: "A", Type: xls.TypeBoolean, Value: true, Index: 0},
+				{Column: "B", Type: xls.TypeError, Value: "#DIV/0!", Index: 1},
+			}},
 			{"date.xls", 1, []xls.Cell{
 				{Column: "A", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC), Index: 0},
 				{Column: "B", Type: xls.TypeDate, Value: time.Date(1901, time.January, 1, 0, 0, 0, 0, time.UTC), Index: 1},

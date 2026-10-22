@@ -14,8 +14,8 @@ iterator without loading the whole sheet into memory.
 - List the names of a workbook's visible worksheets
 - Stream rows of a sheet as an `iter.Seq[Row]` iterator as they are parsed,
   instead of buffering the whole sheet
-- String, numeric, date, and boolean cell values, with spreadsheet-style
-  column labels (`A`, `B`, ..., `AA`, ...)
+- String, numeric, date, boolean, and formula-error cell values, with
+  spreadsheet-style column labels (`A`, `B`, ..., `AA`, ...)
 - Each `Row` reports `FirstCol`/`LastCol`, the 0-based column range Excel
   recorded as having data, even if some of those columns are empty
 
@@ -67,6 +67,33 @@ full column range Excel recorded for the row instead of inferring it from
 ```go
 for row := range f.ReadRows("Sheet1") {
 	fmt.Printf("row %d spans columns %d to %d\n", row.Index, row.FirstCol, row.LastCol)
+}
+```
+
+### Cell types
+
+Each `Cell.Type` reports the Go type stored in `Cell.Value`:
+
+| `CellType`     | `Value` type | Example           |
+| -------------- | ------------ | ----------------- |
+| `TypeString`   | `string`     | `"hello"`         |
+| `TypeNumeric`  | `float64`    | `3.14`            |
+| `TypeBoolean`  | `bool`       | `true`            |
+| `TypeDate`     | `time.Time`  | `2024-01-01`      |
+| `TypeError`    | `string`     | `"#DIV/0!"`       |
+
+A cell holding a formula error (`#DIV/0!`, `#N/A`, `#REF!`, etc.) is reported
+as `TypeError` rather than being silently dropped or folded into
+`TypeString`, so callers can distinguish a real error from literal text that
+happens to look like one:
+
+```go
+for _, cell := range row.Cells {
+	if cell.Type == xls.TypeError {
+		log.Printf("%s%d has a formula error: %s", cell.Column, row.Index+1, cell.Value)
+		continue
+	}
+	// ...
 }
 ```
 

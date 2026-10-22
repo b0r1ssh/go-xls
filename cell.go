@@ -32,6 +32,8 @@ const (
 	TypeBoolean
 	// TypeDate means Value is a time.Time.
 	TypeDate
+	// TypeError means Value is a string holding a formula error code (e.g. "#DIV/0!").
+	TypeError
 )
 
 // Cell is a single spreadsheet cell.
@@ -101,6 +103,15 @@ func addCellBoolean(col int, value bool) Cell {
 	return Cell{
 		Column: columnLabel(col),
 		Type:   TypeBoolean,
+		Value:  value,
+		Index:  col,
+	}
+}
+
+func addCellError(col int, value string) Cell {
+	return Cell{
+		Column: columnLabel(col),
+		Type:   TypeError,
 		Value:  value,
 		Index:  col,
 	}

@@ -151,13 +151,17 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 
 			add(rw, addCellString(col, value))
 		case recBOOLERR:
-			rw, col, value, err := rec.parseBOOLERR()
+			rw, col, value, isBoolean, err := rec.parseBOOLERR()
 			if err != nil {
 				fail(err)
 				continue
 			}
 
-			add(rw, addCellBoolean(col, value))
+			if isBoolean {
+				add(rw, addCellBoolean(col, value.(bool)))
+			} else {
+				add(rw, addCellError(col, value.(string)))
+			}
 		case recROW:
 			rw, firstCol, lastCol, err := rec.parseROW()
 			if err != nil {
