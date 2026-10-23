@@ -25,6 +25,8 @@ const (
 	recXF         = 0x00E0
 	recDATEMODE   = 0x0022
 	recCONTINUE   = 0x003C
+	recBLANK      = 0x0201
+	recMULBLANK   = 0x00BE
 )
 
 type biffRecord struct {
@@ -291,6 +293,32 @@ func (rec biffRecord) parseDATEMODE() (is1904 bool, err error) {
 	is1904 = binary.LittleEndian.Uint16(rec.data[0:2]) != 0
 
 	return is1904, nil
+}
+
+func (rec biffRecord) parseBLANK() (row, col int, err error) {
+	if len(rec.data) < 4 {
+		return 0, 0, errors.New("malformed BLANK record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+
+	return row, col, nil
+}
+
+func (rec biffRecord) parseMULBLANK() (row int, cols []int, err error) {
+	if len(rec.data) < 6 {
+		return 0, nil, errors.New("malformed MULBLANK record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	firstCol := int(binary.LittleEndian.Uint16(rec.data[2:4]))
+	cols = make([]int, (len(rec.data)-6)/2)
+	for i := range cols {
+		cols[i] = firstCol + i
+	}
+
+	return row, cols, nil
 }
 
 // decodeRK decodes an RK-encoded number from a BIFF record into a float64 value.
