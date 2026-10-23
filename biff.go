@@ -29,6 +29,8 @@ const (
 	recMULBLANK   = 0x00BE
 	recLABEL      = 0x0204
 	recRSTRING    = 0x00D6
+	recFORMULA    = 0x0006
+	recSTRING     = 0x0207
 )
 
 type biffRecord struct {
@@ -331,13 +333,9 @@ func (rec biffRecord) parseLABEL() (row, col int, value string, err error) {
 	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
 	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
 
-	var consumed int
-	value, consumed, err = parseXLUnicodeString(rec.data[6:])
+	value, err = parseXLUnicodeString(rec.data[6:])
 	if err != nil {
 		return 0, 0, "", fmt.Errorf("malformed LABEL record: %w", err)
-	}
-	if consumed != len(rec.data)-6 {
-		return 0, 0, "", errors.New("malformed LABEL record: unexpected trailing data")
 	}
 
 	return row, col, value, nil
@@ -351,34 +349,112 @@ func (rec biffRecord) parseRSTRING() (row, col int, value string, err error) {
 	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
 	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
 
-	var consumed int
-	value, consumed, err = parseXLUnicodeString(rec.data[6:])
+	value, err = parseXLUnicodeString(rec.data[6:])
 	if err != nil {
 		return 0, 0, "", fmt.Errorf("malformed RSTRING record: %w", err)
 	}
-	if consumed != len(rec.data)-6 {
-		return 0, 0, "", errors.New("malformed RSTRING record: unexpected trailing data")
-	}
-
 	return row, col, value, nil
 }
 
-func parseXLUnicodeString(data []byte) (value string, consumed int, err error) {
+type formulaKind uint8
+
+const (
+	formulaNumeric formulaKind = iota
+	formulaBoolean
+	formulaErrorValue
+	formulaStringPending
+	formulaBlank
+)
+
+func (rec biffRecord) parseFORMULA() (row, col int, ixfe uint16, value any, kind formulaKind, err error) {
+	if len(rec.data) < 14 {
+		return 0, 0, 0, nil, 0, errors.New("malformed FORMULA record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+	ixfe = binary.LittleEndian.Uint16(rec.data[4:6])
+
+	// The next 8 bytes are the result of the formula
+	resultBytes := rec.data[6:14]
+
+	if resultBytes[6] == 0xFF && resultBytes[7] == 0xFF {
+		switch resultBytes[0] {
+		case 0:
+			return row, col, ixfe, nil, formulaStringPending, nil
+		case 1:
+			return row, col, ixfe, resultBytes[2] != 0, formulaBoolean, nil
+		case 2:
+			return row, col, ixfe, formulaError(resultBytes[2]), formulaErrorValue, nil
+		case 3:
+			return row, col, ixfe, nil, formulaBlank, nil
+		default:
+			return 0, 0, 0, nil, 0, errors.New("unknown formula result type")
+		}
+	}
+
+	return row, col, ixfe, math.Float64frombits(binary.LittleEndian.Uint64(resultBytes)), formulaNumeric, nil
+}
+
+func (rec biffRecord) parseSTRING(rr *recordReader) (string, error) {
+	s := &sstReader{rr: rr, data: rec.data}
+	header, err := s.readBytes(3)
+	if err != nil {
+		return "", errors.New("malformed STRING record: truncated string header")
+	}
+
+	cch := int(binary.LittleEndian.Uint16(header[:2]))
+	flags := header[2]
+	fHighByte := flags&0x1 != 0
+
+	crun := 0
+	if flags&0x8 != 0 {
+		data, err := s.readBytes(2)
+		if err != nil {
+			return "", errors.New("malformed STRING record: truncated rich string header")
+		}
+
+		crun = int(binary.LittleEndian.Uint16(data))
+	}
+
+	cbExtRst := 0
+	if flags&0x4 != 0 {
+		data, err := s.readBytes(4)
+		if err != nil {
+			return "", errors.New("malformed STRING record: truncated ext string header")
+		}
+
+		cbExtRst = int(binary.LittleEndian.Uint32(data))
+	}
+
+	value, err := s.readChars(cch, fHighByte)
+	if err != nil {
+		return "", errors.New("malformed STRING record: truncated string data")
+	}
+
+	if _, err := s.readBytes(crun*4 + cbExtRst); err != nil {
+		return "", errors.New("malformed STRING record: truncated string trailer")
+	}
+
+	return value, nil
+}
+
+func parseXLUnicodeString(data []byte) (value string, err error) {
 	if len(data) < 3 {
-		return "", 0, errors.New("truncated string header")
+		return "", errors.New("truncated string header")
 	}
 
 	cch := int(binary.LittleEndian.Uint16(data[:2]))
 	flags := data[2]
 	if flags&0xF2 != 0 {
-		return "", 0, errors.New("invalid string flags")
+		return "", errors.New("invalid string flags")
 	}
 
 	pos := 3
 	richRuns := 0
 	if flags&0x08 != 0 {
 		if len(data)-pos < 2 {
-			return "", 0, errors.New("truncated rich-text header")
+			return "", errors.New("truncated rich-text header")
 		}
 
 		richRuns = int(binary.LittleEndian.Uint16(data[pos : pos+2]))
@@ -388,13 +464,13 @@ func parseXLUnicodeString(data []byte) (value string, consumed int, err error) {
 	extSize := 0
 	if flags&0x04 != 0 {
 		if len(data)-pos < 4 {
-			return "", 0, errors.New("truncated extended-string header")
+			return "", errors.New("truncated extended-string header")
 		}
 
 		extSize64 := uint64(binary.LittleEndian.Uint32(data[pos : pos+4]))
 		pos += 4
 		if extSize64 > uint64(len(data)-pos) {
-			return "", 0, errors.New("truncated extended string data")
+			return "", errors.New("truncated extended string data")
 		}
 
 		extSize = int(extSize64)
@@ -406,7 +482,7 @@ func parseXLUnicodeString(data []byte) (value string, consumed int, err error) {
 	}
 	charBytes := cch * charSize
 	if charBytes > len(data)-pos {
-		return "", 0, errors.New("truncated string data")
+		return "", errors.New("truncated string data")
 	}
 
 	if charSize == 1 {
@@ -426,10 +502,10 @@ func parseXLUnicodeString(data []byte) (value string, consumed int, err error) {
 	pos += charBytes
 	runBytes := richRuns * 4
 	if runBytes > len(data)-pos || extSize > len(data)-pos-runBytes {
-		return "", 0, errors.New("truncated string formatting data")
+		return "", errors.New("truncated string formatting data")
 	}
 
-	return value, pos + runBytes + extSize, nil
+	return value, nil
 }
 
 // decodeRK decodes an RK-encoded number from a BIFF record into a float64 value.
