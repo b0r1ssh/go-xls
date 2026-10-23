@@ -116,6 +116,24 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 			} else {
 				add(rw, addCellNumeric(col, value))
 			}
+		case recBLANK:
+			rw, col, err := rec.parseBLANK()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			add(rw, addCellBlank(col))
+		case recMULBLANK:
+			rw, cols, err := rec.parseMULBLANK()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			for _, col := range cols {
+				add(rw, addCellBlank(col))
+			}
 		case recMULRK:
 			rw, cols, ixfes, values, err := rec.parseMULRK()
 			if err != nil {

@@ -34,6 +34,8 @@ const (
 	TypeDate
 	// TypeError means Value is a string holding a formula error code (e.g. "#DIV/0!").
 	TypeError
+	// TypeBlank means the cell is empty.
+	TypeBlank
 )
 
 // Cell is a single spreadsheet cell.
@@ -122,6 +124,15 @@ func addCellDate(col int, value time.Time) Cell {
 		Column: columnLabel(col),
 		Type:   TypeDate,
 		Value:  value,
+		Index:  col,
+	}
+}
+
+func addCellBlank(col int) Cell {
+	return Cell{
+		Column: columnLabel(col),
+		Type:   TypeBlank,
+		Value:  nil,
 		Index:  col,
 	}
 }

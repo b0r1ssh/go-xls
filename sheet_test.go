@@ -72,6 +72,11 @@ func TestXLSReadRows(t *testing.T) {
 			}},
 			{"pourcentage.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(0.01), Index: 0}}},
 			{"hour.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeDate, Value: time.Date(1900, time.January, 1, 1, 0, 0, 0, time.UTC), Index: 0}}},
+			{"blank.xls", 1, []xls.Cell{
+				{Column: "A", Type: xls.TypeBlank, Value: nil, Index: 0},
+				{Column: "B", Type: xls.TypeBlank, Value: nil, Index: 1},
+				{Column: "C", Type: xls.TypeBlank, Value: nil, Index: 2},
+			}},
 		}
 
 		for _, tt := range tests {
@@ -124,6 +129,7 @@ func TestXLSReadRows(t *testing.T) {
 		}{
 			{"string.xls", 0, 0},
 			{"multi_number.xls", 0, 2},
+			{"blank.xls", 0, 2},
 		}
 
 		for _, tt := range tests {

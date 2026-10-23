@@ -16,6 +16,7 @@ iterator without loading the whole sheet into memory.
   instead of buffering the whole sheet
 - String, numeric, date, boolean, and formula-error cell values, with
   spreadsheet-style column labels (`A`, `B`, ..., `AA`, ...)
+- Explicitly blank cells recorded by Excel are returned as `TypeBlank` cells
 - Each `Row` reports `FirstCol`/`LastCol`, the 0-based column range Excel
   recorded as having data, even if some of those columns are empty
 
@@ -59,10 +60,10 @@ func main() {
 }
 ```
 
-`Row.Cells` only contains cells that hold a value, so blank cells in the
-middle of a row are skipped. Use `Row.FirstCol` and `Row.LastCol` to know the
-full column range Excel recorded for the row instead of inferring it from
-`Cells`:
+`Row.Cells` includes cells that Excel explicitly recorded as blank. Those
+cells have `TypeBlank` and a `nil` value. Empty positions with no cell record
+are omitted. Use `Row.FirstCol` and `Row.LastCol` to know the full column
+range Excel recorded for the row instead of inferring it from `Cells`:
 
 ```go
 for row := range f.ReadRows("Sheet1") {
@@ -81,6 +82,7 @@ Each `Cell.Type` reports the Go type stored in `Cell.Value`:
 | `TypeBoolean`  | `bool`       | `true`            |
 | `TypeDate`     | `time.Time`  | `2024-01-01`      |
 | `TypeError`    | `string`     | `"#DIV/0!"`       |
+| `TypeBlank`    | `nil`        |                   |
 
 A cell holding a formula error (`#DIV/0!`, `#N/A`, `#REF!`, etc.) is reported
 as `TypeError` rather than being silently dropped or folded into
