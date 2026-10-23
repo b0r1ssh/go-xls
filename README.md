@@ -14,8 +14,9 @@ iterator without loading the whole sheet into memory.
 - List the names of a workbook's visible worksheets
 - Stream rows of a sheet as an `iter.Seq[Row]` iterator as they are parsed,
   instead of buffering the whole sheet
-- String, numeric, date, boolean, and formula-error cell values, with
-  spreadsheet-style column labels (`A`, `B`, ..., `AA`, ...)
+- String, numeric, date, boolean, and formula-error cell values, including
+  strings stored as shared, inline, or rich-text records, with spreadsheet-style
+  column labels (`A`, `B`, ..., `AA`, ...)
 - Explicitly blank cells recorded by Excel are returned as `TypeBlank` cells
 - Each `Row` reports `FirstCol`/`LastCol`, the 0-based column range Excel
   recorded as having data, even if some of those columns are empty

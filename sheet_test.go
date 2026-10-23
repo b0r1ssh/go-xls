@@ -56,6 +56,8 @@ func TestXLSReadRows(t *testing.T) {
 		}{
 			{"number.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeNumeric, Value: float64(1), Index: 0}}},
 			{"string.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeString, Value: "hello", Index: 0}}},
+			{"label.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeString, Value: "x", Index: 0}}},
+			{"rstring.xls", 1, []xls.Cell{{Column: "A", Type: xls.TypeString, Value: "x", Index: 0}}},
 			{"multi_number.xls", 1, []xls.Cell{
 				{Column: "A", Type: xls.TypeNumeric, Value: float64(1), Index: 0},
 				{Column: "B", Type: xls.TypeNumeric, Value: float64(2), Index: 1},
@@ -128,6 +130,8 @@ func TestXLSReadRows(t *testing.T) {
 			expectedLastCol  uint16
 		}{
 			{"string.xls", 0, 0},
+			{"label.xls", 0, 0},
+			{"rstring.xls", 0, 0},
 			{"multi_number.xls", 0, 2},
 			{"blank.xls", 0, 2},
 		}

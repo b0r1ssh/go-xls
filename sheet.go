@@ -168,6 +168,22 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 			}
 
 			add(rw, addCellString(col, value))
+		case recLABEL:
+			rw, col, value, err := rec.parseLABEL()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			add(rw, addCellString(col, value))
+		case recRSTRING:
+			rw, col, value, err := rec.parseRSTRING()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			add(rw, addCellString(col, value))
 		case recBOOLERR:
 			rw, col, value, isBoolean, err := rec.parseBOOLERR()
 			if err != nil {

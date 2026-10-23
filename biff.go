@@ -27,6 +27,8 @@ const (
 	recCONTINUE   = 0x003C
 	recBLANK      = 0x0201
 	recMULBLANK   = 0x00BE
+	recLABEL      = 0x0204
+	recRSTRING    = 0x00D6
 )
 
 type biffRecord struct {
@@ -319,6 +321,115 @@ func (rec biffRecord) parseMULBLANK() (row int, cols []int, err error) {
 	}
 
 	return row, cols, nil
+}
+
+func (rec biffRecord) parseLABEL() (row, col int, value string, err error) {
+	if len(rec.data) < 8 {
+		return 0, 0, "", errors.New("malformed LABEL record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+
+	var consumed int
+	value, consumed, err = parseXLUnicodeString(rec.data[6:])
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("malformed LABEL record: %w", err)
+	}
+	if consumed != len(rec.data)-6 {
+		return 0, 0, "", errors.New("malformed LABEL record: unexpected trailing data")
+	}
+
+	return row, col, value, nil
+}
+
+func (rec biffRecord) parseRSTRING() (row, col int, value string, err error) {
+	if len(rec.data) < 8 {
+		return 0, 0, "", errors.New("malformed RSTRING record")
+	}
+
+	row = int(binary.LittleEndian.Uint16(rec.data[0:2]))
+	col = int(binary.LittleEndian.Uint16(rec.data[2:4]))
+
+	var consumed int
+	value, consumed, err = parseXLUnicodeString(rec.data[6:])
+	if err != nil {
+		return 0, 0, "", fmt.Errorf("malformed RSTRING record: %w", err)
+	}
+	if consumed != len(rec.data)-6 {
+		return 0, 0, "", errors.New("malformed RSTRING record: unexpected trailing data")
+	}
+
+	return row, col, value, nil
+}
+
+func parseXLUnicodeString(data []byte) (value string, consumed int, err error) {
+	if len(data) < 3 {
+		return "", 0, errors.New("truncated string header")
+	}
+
+	cch := int(binary.LittleEndian.Uint16(data[:2]))
+	flags := data[2]
+	if flags&0xF2 != 0 {
+		return "", 0, errors.New("invalid string flags")
+	}
+
+	pos := 3
+	richRuns := 0
+	if flags&0x08 != 0 {
+		if len(data)-pos < 2 {
+			return "", 0, errors.New("truncated rich-text header")
+		}
+
+		richRuns = int(binary.LittleEndian.Uint16(data[pos : pos+2]))
+		pos += 2
+	}
+
+	extSize := 0
+	if flags&0x04 != 0 {
+		if len(data)-pos < 4 {
+			return "", 0, errors.New("truncated extended-string header")
+		}
+
+		extSize64 := uint64(binary.LittleEndian.Uint32(data[pos : pos+4]))
+		pos += 4
+		if extSize64 > uint64(len(data)-pos) {
+			return "", 0, errors.New("truncated extended string data")
+		}
+
+		extSize = int(extSize64)
+	}
+
+	charSize := 1
+	if flags&0x01 != 0 {
+		charSize = 2
+	}
+	charBytes := cch * charSize
+	if charBytes > len(data)-pos {
+		return "", 0, errors.New("truncated string data")
+	}
+
+	if charSize == 1 {
+		u16 := make([]uint16, cch)
+		for i, b := range data[pos : pos+charBytes] {
+			u16[i] = uint16(b)
+		}
+		value = string(utf16.Decode(u16))
+	} else {
+		u16 := make([]uint16, cch)
+		for i := range u16 {
+			u16[i] = binary.LittleEndian.Uint16(data[pos+i*2 : pos+i*2+2])
+		}
+		value = string(utf16.Decode(u16))
+	}
+
+	pos += charBytes
+	runBytes := richRuns * 4
+	if runBytes > len(data)-pos || extSize > len(data)-pos-runBytes {
+		return "", 0, errors.New("truncated string formatting data")
+	}
+
+	return value, pos + runBytes + extSize, nil
 }
 
 // decodeRK decodes an RK-encoded number from a BIFF record into a float64 value.
