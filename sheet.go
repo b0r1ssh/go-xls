@@ -43,6 +43,12 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 	// is actually started by a cell.
 	pendingSpans := make(map[int][2]uint16)
 
+	type pendingFormulaString struct {
+		row int
+		col int
+	}
+	var formulaString *pendingFormulaString
+
 	rowWidth := 0
 	stopped := false
 	flush := func() {
@@ -97,6 +103,10 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 				flush()
 			}
 			return
+		}
+
+		if rec.recType != recSTRING {
+			formulaString = nil
 		}
 
 		switch rec.recType {
@@ -195,6 +205,44 @@ func (f *File) readSheetRows(sheet Sheet, yield func(Row) bool) {
 				add(rw, addCellBoolean(col, value.(bool)))
 			} else {
 				add(rw, addCellError(col, value.(string)))
+			}
+		case recFORMULA:
+			rw, col, ixfe, value, kind, err := rec.parseFORMULA()
+			if err != nil {
+				fail(err)
+				continue
+			}
+
+			switch kind {
+			case formulaStringPending:
+				formulaString = &pendingFormulaString{row: rw, col: col}
+				continue
+			case formulaNumeric:
+				if f.isDateXFE(ixfe) {
+					add(rw, addCellDate(col, f.excelDateTime(value.(float64))))
+				} else {
+					add(rw, addCellNumeric(col, value.(float64)))
+				}
+			case formulaBoolean:
+				add(rw, addCellBoolean(col, value.(bool)))
+			case formulaErrorValue:
+				add(rw, addCellError(col, value.(string)))
+			case formulaBlank:
+				add(rw, addCellBlank(col))
+			}
+		case recSTRING:
+			if formulaString != nil {
+				rw, col := formulaString.row, formulaString.col
+
+				value, err := rec.parseSTRING(rr)
+				if err != nil {
+					fail(err)
+					formulaString = nil
+					continue
+				}
+
+				add(rw, addCellString(col, value))
+				formulaString = nil
 			}
 		case recROW:
 			rw, firstCol, lastCol, err := rec.parseROW()

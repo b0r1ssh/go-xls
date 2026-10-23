@@ -14,9 +14,9 @@ iterator without loading the whole sheet into memory.
 - List the names of a workbook's visible worksheets
 - Stream rows of a sheet as an `iter.Seq[Row]` iterator as they are parsed,
   instead of buffering the whole sheet
-- String, numeric, date, boolean, and formula-error cell values, including
-  strings stored as shared, inline, or rich-text records, with spreadsheet-style
-  column labels (`A`, `B`, ..., `AA`, ...)
+- String, numeric, date, boolean, and error cell values, including cached
+  results from formulas and strings stored as shared, inline, or rich-text
+  records, with spreadsheet-style column labels (`A`, `B`, ..., `AA`, ...)
 - Explicitly blank cells recorded by Excel are returned as `TypeBlank` cells
 - Each `Row` reports `FirstCol`/`LastCol`, the 0-based column range Excel
   recorded as having data, even if some of those columns are empty
@@ -85,10 +85,17 @@ Each `Cell.Type` reports the Go type stored in `Cell.Value`:
 | `TypeError`    | `string`     | `"#DIV/0!"`       |
 | `TypeBlank`    | `nil`        |                   |
 
+Formula cells are returned with the result saved in the workbook; formulas are
+not recalculated, and their expressions are not exposed. The saved result uses
+the same cell types as other values: numeric results are `TypeNumeric` (or
+`TypeDate` when the cell has a date format), and string, boolean, blank, and
+error results use their corresponding types. Formula results cannot otherwise
+be distinguished from literal cell values.
+
 A cell holding a formula error (`#DIV/0!`, `#N/A`, `#REF!`, etc.) is reported
-as `TypeError` rather than being silently dropped or folded into
-`TypeString`, so callers can distinguish a real error from literal text that
-happens to look like one:
+as `TypeError` rather than being silently dropped or folded into `TypeString`,
+so callers can distinguish an error value from literal text that happens to
+look like one:
 
 ```go
 for _, cell := range row.Cells {
