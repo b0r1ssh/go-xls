@@ -6,10 +6,11 @@ package xls
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 
-	"github.com/b0r1ssh/go-xls/internal/cfb"
+	"github.com/b0r1ssh/cfb"
 )
 
 type streamReader interface {
@@ -60,12 +61,22 @@ func OpenFile(path string) (*File, error) {
 // OpenReader opens a .xls workbook from r. Unlike OpenFile, the caller
 // retains ownership of r and Close will not close it.
 func OpenReader(r io.ReaderAt) (*File, error) {
-	container, err := cfb.Open(r)
+	size, err := readerSize(r)
 	if err != nil {
 		return nil, err
 	}
 
-	stream, err := container.Stream("Workbook")
+	container, err := cfb.Open(r, size)
+	if err != nil {
+		return nil, err
+	}
+
+	entry := container.Root.Find("Workbook")
+	if entry == nil {
+		return nil, errors.New("xls: stream Workbook not found")
+	}
+
+	stream, err := entry.Open()
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +90,28 @@ func OpenReader(r io.ReaderAt) (*File, error) {
 	}
 
 	return f, nil
+}
+
+func readerSize(r io.ReaderAt) (int64, error) {
+	if s, ok := r.(interface{ Size() int64 }); ok {
+		return s.Size(), nil
+	}
+
+	seeker, ok := r.(io.Seeker)
+	if !ok {
+		return 0, fmt.Errorf("xls: reader must implement Size() int64 or io.Seeker")
+	}
+
+	size, err := seeker.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, err
+	}
+
+	if _, err := seeker.Seek(0, io.SeekStart); err != nil {
+		return 0, err
+	}
+
+	return size, nil
 }
 
 // SheetNames returns the names of the workbook's visible worksheets, in
