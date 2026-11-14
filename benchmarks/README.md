@@ -36,10 +36,10 @@ for your own numbers.
 
 | Reader | Time/op | Throughput | Memory/op | Allocs/op | Relative time |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `b0r1ssh/go-xls` | 10.2 ms | 165.9 MB/s | 11.3 MB | 300,861 | 1.0x |
-| `pbnjay/grate` | 25.8 ms | 65.8 MB/s | 34.2 MB | 578,440 | 2.5x |
-| `jloor/go-excel-reader` | 109.7 ms | 15.5 MB/s | 24.5 MB | 374,050 | 10.7x |
-| `extrame/xls` | 395.5 ms | 4.3 MB/s | 25.7 MB | 1,159,802 | 38.7x |
+| `b0r1ssh/go-xls` | 9.9 ms | 171.4 MB/s | 13.0 MB | 304,182 | 1.0x |
+| `pbnjay/grate` | 22.5 ms | 75.5 MB/s | 35.0 MB | 602,687 | 2.3x |
+| `jloor/go-excel-reader` | 104.7 ms | 16.2 MB/s | 24.5 MB | 374,050 | 10.6x |
+| `extrame/xls` | 376.7 ms | 4.5 MB/s | 25.7 MB | 1,159,802 | 38.1x |
 
 "Relative time" is each reader's time/op divided by this package's time/op
 (lower is better; 1.0x is the baseline).

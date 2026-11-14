@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/b0r1ssh/cfb v1.0.0 // indirect
 	github.com/extrame/ole2 v0.0.0-20160812065207-d69429661ad7 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
